@@ -18,8 +18,13 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ucontext.h>
 
 typedef uint mypthread_t;
+
+typedef struct thread_strack{
+
+} THREAD_STACK;
 
 typedef struct threadControlBlock {
 	/* add important states in a thread control block */
@@ -29,6 +34,12 @@ typedef struct threadControlBlock {
 	// thread stack
 	// thread priority
 	// And more ...
+
+	mypthread_t threadID;
+	u_int8_t status;
+	ucontext_t thread_context;
+	THREAD_STACK* stack;
+	u_int8_t priority;
 
 	// YOUR CODE HERE
 } tcb;
