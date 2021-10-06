@@ -1,6 +1,6 @@
 // File:	mypthread.c
 
-// List all group member's name: Philip C. Okoh, Paul
+// List all group member's name: Philip C. Okoh, Paul Kotys
 // username of iLab: pco23
 // iLab Server: ilab1
 
