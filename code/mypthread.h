@@ -76,8 +76,8 @@ typedef struct mypthread_mutex_t {
 /*
 	Thread queue functions - START
 */
-int mypthread_queue_enqueue(mypthread_queue*, mypthread_t*);
-int mypthread_queue_dequeue(mypthread_queue*);
+int mypthread_queue_enqueue(mypthread_queue *front, mypthread_t *pthread_item);
+int mypthread_queue_dequeue(mypthread_queue *front);
 void queue_cleanup(mypthread_queue*);
 
 /*
