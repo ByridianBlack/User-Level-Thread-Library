@@ -1,13 +1,16 @@
 // File:	mypthread.c
 
 // List all group member's name: Philip C. Okoh, Paul Kotys
-// username of iLab: pco23
+// username of iLab: pco23, pjk151
 // iLab Server: ilab1
 
 #include "mypthread.h"
 
-// INITAILIZE ALL YOUR VARIABLES HERE
-// YOUR CODE HERE
+#define STACK_SIZE SIGSTKSZ
+
+// Used to assign thread IDs to threads
+mypthread_t threadIDCounter = 0;
+
 
 /*
 	Enqueues the pthread into the queue;
@@ -73,13 +76,48 @@ void queue_cleanup(mypthread_queue* front)
 /* create a new thread */
 int mypthread_create(mypthread_t * thread, pthread_attr_t * attr,
                       void *(*function)(void*), void * arg) {
-       // create Thread Control Block
-       // create and initialize the context of this thread
-       // allocate space of stack for this thread to run
-       // after everything is all set, push this thread int
-       // YOUR CODE HERE
 
-    return 0;
+        struct threadControlBlock *newTCB = malloc(sizeof(struct threadControlBlock));
+        if (newTCB == NULL) {
+                /*error handler*/
+        }
+        
+        threadIDCounter++;
+        newTCB->theadID      = threadIDCounter;
+        newTCB->state        = ready;
+        newTCB->quantumCount = 0;
+        
+        struct ucontext_t *newContext = malloc(sizeof(struct ucontext_t));
+        if (newContext == NULL) {
+                /*error handler*/
+        }
+        
+        if (getcontext(newContext) != 0) {
+                /*error handler*/
+        }
+        
+        void *stack = malloc(STACK_SIZE);
+        if (stack == NULL) {
+                /*error handler*/
+        }
+        
+        newContext->uc_link           = NULL;             // Set successor stack to null
+        newContext->uc_stack.ss_sp    = stack;            // Set the starting address of the stack
+        newContext->uc_stack.ss_size  = STACK_SIZE;       // Set the size of the stack
+        newContext->uc_stack.ss_flags = 0;                // Might be necessary
+        
+        // Need to check how arg will be passed to makecontext. Seems to use varargs.
+        if (makecontext(newContext, function, 1, arg) != 0) {
+                /*error handler*/
+        }
+        
+        // newTCB is ready to go.
+        newTCB->context = newContext;
+        
+        
+        
+        
+        return 0;
 };
 
 /* give CPU possession to other user-level threads voluntarily */

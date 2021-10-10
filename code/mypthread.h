@@ -26,23 +26,15 @@ typedef struct thread_strack{
 
 } THREAD_STACK;
 
-typedef struct threadControlBlock {
-	/* add important states in a thread control block */
-	// thread Id
-	// thread status
-	// thread context
-	// thread stack
-	// thread priority
-	// And more ...
+enum status {ready = 1, running = 2, blocked = 3};
 
-	mypthread_t threadID;
-	u_int8_t status;
-	ucontext_t thread_context;
-	THREAD_STACK* stack;
-	u_int8_t priority;
+struct threadControlBlock {
 
-	// YOUR CODE HERE
-} tcb;
+	mypthread_t threadID;           // thread id
+	ucontext_t thread_context;      // thread context
+        enum status state;              // thread status
+        int quantum_count;              // number of elapsed quanta;
+};
 
 
 typedef struct mypthread_queue{
