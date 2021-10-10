@@ -49,6 +49,27 @@ int mypthread_queue_enqueue(mypthread_queue* front, mypthread_t* pthread_item)
 }
 
 
+/*
+	Cleans up the queue if any items remains
+*/
+void queue_cleanup(mypthread_queue* front)
+{
+	if(front == NULL)
+	{
+		return;
+	}
+
+	mypthread_queue* cursor = front;
+	mypthread_queue* temp = NULL;
+	while(cursor != NULL)
+	{
+		temp = cursor;
+		cursor = cursor->next;
+		free(temp);
+	}
+	return;
+}
+
 /* create a new thread */
 int mypthread_create(mypthread_t * thread, pthread_attr_t * attr,
                       void *(*function)(void*), void * arg) {
@@ -144,6 +165,8 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex) {
 /* destroy the mutex */
 int mypthread_mutex_destroy(mypthread_mutex_t *mutex) {
 	// Deallocate dynamic memory created in mypthread_mutex_init
+
+
 
 	return 0;
 };

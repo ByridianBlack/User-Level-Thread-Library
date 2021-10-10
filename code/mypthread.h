@@ -72,7 +72,17 @@ typedef struct mypthread_mutex_t {
 
 /* Function Declarations: */
 
+
+/*
+	Thread queue functions - START
+*/
 int mypthread_queue_enqueue(mypthread_queue*, mypthread_t*);
+int mypthread_queue_dequeue(mypthread_queue*);
+void queue_cleanup(mypthread_queue*);
+
+/*
+	Thread queue functions - END
+*/
 
 /* create a new thread */
 int mypthread_create(mypthread_t * thread, pthread_attr_t * attr, void
