@@ -166,7 +166,9 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex) {
 int mypthread_mutex_destroy(mypthread_mutex_t *mutex) {
 	// Deallocate dynamic memory created in mypthread_mutex_init
 
-
+	queue_cleanup(mutex->thread_queue);
+	
+	free(mutex);
 
 	return 0;
 };
