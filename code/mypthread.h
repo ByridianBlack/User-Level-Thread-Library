@@ -44,12 +44,25 @@ typedef struct threadControlBlock {
 	// YOUR CODE HERE
 } tcb;
 
+
+typedef struct mypthread_queue{
+
+	mypthread_t* thread;
+	struct mypthread_queue* next;
+
+}mypthread_queue;
 /* mutex struct definition */
 typedef struct mypthread_mutex_t {
 	/* add something here */
-
+	u_int8_t lock;
+	u_int8_t flag;
+	mypthread_queue* thread_queue;
+	mypthread_t owner_id;
 	// YOUR CODE HERE
 } mypthread_mutex_t;
+
+
+
 
 /* define your data structures here: */
 // Feel free to add your own auxiliary data structures (linked list or queue etc...)
@@ -58,6 +71,8 @@ typedef struct mypthread_mutex_t {
 
 
 /* Function Declarations: */
+
+int mypthread_queue_enqueue(mypthread_queue*, mypthread_t*);
 
 /* create a new thread */
 int mypthread_create(mypthread_t * thread, pthread_attr_t * attr, void

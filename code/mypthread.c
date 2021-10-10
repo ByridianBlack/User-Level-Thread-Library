@@ -9,6 +9,45 @@
 // INITAILIZE ALL YOUR VARIABLES HERE
 // YOUR CODE HERE
 
+/*
+	Enqueues the pthread into the queue;
+	This function was created and used for the mutex locking 
+	and unlocking mechanism. Might be repurposed for other cases.
+
+	returns:
+		 0: success
+		-1: failure
+*/
+int mypthread_queue_enqueue(mypthread_queue* front, mypthread_t* pthread_item)
+{
+	if(front == NULL){
+	
+		front = malloc(sizeof(mypthread_queue));
+	
+		front->next = NULL;
+	
+		front->thread = pthread_item;
+	
+		return 0;
+	}
+
+	mypthread_queue* cursor = front;
+
+	while(cursor->next != NULL){
+	
+		cursor = cursor->next;
+	
+	}
+
+	cursor->next = malloc(sizeof(mypthread_queue));
+	
+	cursor->next->next = NULL;
+	
+	cursor->next->thread = pthread_item;
+	
+	return 0;
+}
+
 
 /* create a new thread */
 int mypthread_create(mypthread_t * thread, pthread_attr_t * attr,
@@ -51,11 +90,31 @@ int mypthread_join(mypthread_t thread, void **value_ptr) {
 	return 0;
 };
 
-/* initialize the mutex lock */
+/* initialize the mutex lock 
+	return:
+		 0 - Success
+		-1 - Failure
+*/
 int mypthread_mutex_init(mypthread_mutex_t *mutex,
                           const pthread_mutexattr_t *mutexattr) {
 	//initialize data structures for this mutex
 
+
+	/*
+		Mutex not successfully Initialized
+	*/
+	if(mutex == NULL)
+	{
+		return -1;
+	}
+
+	mutex = malloc(sizeof(mypthread_mutex_t));
+	mutex->lock = 0;
+	mutex->flag = 0;
+	mutex->thread_queue = malloc(sizeof(mypthread_queue));
+	mutex->thread_queue->next = NULL;
+	mutex->thread_queue->thread = NULL;
+	mutex->owner_id = 0;
 	// YOUR CODE HERE
 	return 0;
 };
