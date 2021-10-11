@@ -7,7 +7,7 @@
 #include "mypthread.h"
 
 #define STACK_SIZE SIGSTKSZ
-
+#define LOCKED 1
 // Used to assign thread IDs to threads
 mypthread_t threadIDCounter = 0;
 
@@ -83,9 +83,9 @@ int mypthread_create(mypthread_t * thread, pthread_attr_t * attr,
         }
         
         threadIDCounter++;
-        newTCB->theadID      = threadIDCounter;
+        newTCB->threadID      = threadIDCounter;
         newTCB->state        = ready;
-        newTCB->quantumCount = 0;
+        newTCB->quantum_count = 0;
         
         struct ucontext_t *newContext = malloc(sizeof(struct ucontext_t));
         if (newContext == NULL) {
@@ -178,13 +178,25 @@ int mypthread_mutex_init(mypthread_mutex_t *mutex,
 	return 0;
 };
 
+u_int8_t test_and_set(u_int8_t* lock){
+
+	u_int8_t old = &lock;
+	*lock = LOCKED;
+
+	return old;
+}
+
 /* aquire the mutex lock */
 int mypthread_mutex_lock(mypthread_mutex_t *mutex) {
         // use the built-in test-and-set atomic function to test the mutex
         // if the mutex is acquired successfully, enter the critical section
         // if acquiring mutex fails, push current thread into block list and //
         // context switch to the scheduler thread
-
+		if(test_and_set(&mutex->lock) == 1){
+			/*
+				Add to queue
+			*/
+		}
         // YOUR CODE HERE
         return 0;
 };
@@ -194,7 +206,7 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex) {
 	// Release mutex and make it available again.
 	// Put threads in block list to run queue
 	// so that they could compete for mutex later.
-
+	
 	// YOUR CODE HERE
 	return 0;
 };
