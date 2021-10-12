@@ -37,6 +37,11 @@ struct threadControlBlock {
 };
 
 
+typedef struct mypthread_priority_queue{
+	struct threadControlBlock* context;
+	int priority;
+}priority_queue;
+
 typedef struct mypthread_queue{
 
 	struct threadControlBlock* context;
@@ -52,6 +57,7 @@ typedef struct mypthread_mutex_t {
 	mypthread_t owner_id;
 	// YOUR CODE HERE
 } mypthread_mutex_t;
+
 
 
 
