@@ -6,7 +6,7 @@
 
 #include "mypthread.h"
 
-#define STACK_SIZE SIGSTKSZ
+#define STACK_SIZE 1892
 #define LOCKED 1
 // Used to assign thread IDs to threads
 mypthread_t threadIDCounter = 0;
@@ -22,7 +22,7 @@ struct threadControlBlock* current_running_thread = NULL;
 		 0: success
 		-1: failure
 */
-int mypthread_queue_enqueue(mypthread_queue* front, mypthread_t* pthread_item)
+int mypthread_queue_enqueue(mypthread_queue* front, struct threadControlBlock* pthread_item)
 {
 	if(front == NULL){
 	
@@ -30,7 +30,7 @@ int mypthread_queue_enqueue(mypthread_queue* front, mypthread_t* pthread_item)
 	
 		front->next = NULL;
 	
-		front->thread = pthread_item;
+		front->context = pthread_item;
 	
 		return 0;
 	}
@@ -47,9 +47,24 @@ int mypthread_queue_enqueue(mypthread_queue* front, mypthread_t* pthread_item)
 	
 	cursor->next->next = NULL;
 	
-	cursor->next->thread = pthread_item;
+	cursor->next->context = pthread_item;
 	
 	return 0;
+}
+
+struct threadControlBlock* mypthread_queue_dequeue(mypthread_queue* front){
+	
+	if(front == NULL){
+	
+		return NULL;
+	
+	}
+	
+	struct threadControlBlock* ret_val = front;
+	
+	front = front->next;
+	
+	return ret_val;
 }
 
 
@@ -64,13 +79,21 @@ void queue_cleanup(mypthread_queue* front)
 	}
 
 	mypthread_queue* cursor = front;
+	
 	mypthread_queue* temp = NULL;
+	
 	while(cursor != NULL)
 	{
+	
 		temp = cursor;
+	
 		cursor = cursor->next;
+	
+		free(temp->context);
+	
 		free(temp);
 	}
+	
 	return;
 }
 
@@ -192,8 +215,9 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex) {
         // context switch to the scheduler thread
 		if(test_and_set(&mutex->lock) == 1){
 			/*
-				Add to queue
+				Add to queue & Yield
 			*/
+
 
 			// current_thread_block->threadID = 
 
