@@ -10,6 +10,7 @@
 #define LOCKED 1
 // Used to assign thread IDs to threads
 mypthread_t threadIDCounter = 0;
+struct threadControlBlock* current_running_thread = NULL;
 
 
 /*
@@ -107,12 +108,10 @@ int mypthread_create(mypthread_t * thread, pthread_attr_t * attr,
         newContext->uc_stack.ss_flags = 0;                // Might be necessary
         
         // Need to check how arg will be passed to makecontext. Seems to use varargs.
-        if (makecontext(newContext, function, 1, arg) != 0) {
-                /*error handler*/
-        }
+        makecontext(newContext, function, 1, arg);
         
         // newTCB is ready to go.
-        newTCB->context = newContext;
+        newTCB->thread_context = newContext;
         
         
         
@@ -172,7 +171,6 @@ int mypthread_mutex_init(mypthread_mutex_t *mutex,
 	mutex->flag = 0;
 	mutex->thread_queue = malloc(sizeof(mypthread_queue));
 	mutex->thread_queue->next = NULL;
-	mutex->thread_queue->thread = NULL;
 	mutex->owner_id = 0;
 	// YOUR CODE HERE
 	return 0;
@@ -196,6 +194,9 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex) {
 			/*
 				Add to queue
 			*/
+
+			// current_thread_block->threadID = 
+
 		}
         // YOUR CODE HERE
         return 0;

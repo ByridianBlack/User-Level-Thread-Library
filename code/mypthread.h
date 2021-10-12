@@ -31,7 +31,7 @@ enum status {ready = 1, running = 2, blocked = 3};
 struct threadControlBlock {
 
 	mypthread_t threadID;           // thread id
-	ucontext_t thread_context;      // thread context
+	ucontext_t* thread_context;      // thread context
         enum status state;              // thread status
         int quantum_count;              // number of elapsed quanta;
 };
@@ -39,7 +39,7 @@ struct threadControlBlock {
 
 typedef struct mypthread_queue{
 
-	mypthread_t* thread;
+	struct threadControlBlock context;
 	struct mypthread_queue* next;
 
 }mypthread_queue;
