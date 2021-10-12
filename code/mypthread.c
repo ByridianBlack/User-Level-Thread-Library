@@ -22,15 +22,15 @@ struct threadControlBlock* current_running_thread = NULL;
 		 0: success
 		-1: failure
 */
-int mypthread_queue_enqueue(mypthread_queue* front, struct threadControlBlock* pthread_item)
+int mypthread_queue_enqueue(mypthread_queue** front, struct threadControlBlock* pthread_item)
 {
-	if(front == NULL){
+	if(*front == NULL){
 	
-		front = malloc(sizeof(mypthread_queue));
+		*front = malloc(sizeof(mypthread_queue));
 	
-		front->next = NULL;
+		(*front)->next = NULL;
 	
-		front->context = pthread_item;
+		(*front)->context = pthread_item;
 	
 		return 0;
 	}
@@ -52,18 +52,17 @@ int mypthread_queue_enqueue(mypthread_queue* front, struct threadControlBlock* p
 	return 0;
 }
 
-struct threadControlBlock* mypthread_queue_dequeue(mypthread_queue* front){
+struct threadControlBlock* mypthread_queue_dequeue(mypthread_queue **front){
 	
-	if(front == NULL){
+	if(*front == NULL){
 	
 		return NULL;
 	
 	}
 	
-	struct threadControlBlock* ret_val = front;
+	struct threadControlBlock* ret_val = (*front)->context;
 	
-	front = front->next;
-	
+	*front = (*front)->next;
 	return ret_val;
 }
 
@@ -215,9 +214,10 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex) {
         // context switch to the scheduler thread
 		if(test_and_set(&mutex->lock) == 1){
 			/*
-				Add to queue & Yield
+				Add the thread that is want the mutex into the mutex queue and then yields it.
 			*/
 
+			mypthread_queue_enqueue(&mutex->thread_queue, current_running_thread);
 
 			// current_thread_block->threadID = 
 
