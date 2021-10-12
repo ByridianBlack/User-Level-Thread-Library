@@ -37,14 +37,9 @@ struct threadControlBlock {
 };
 
 
-typedef struct mypthread_priority_queue{
-	struct threadControlBlock* context;
-	int priority;
-}priority_queue;
-
 typedef struct mypthread_queue{
-
 	struct threadControlBlock* context;
+	u_int8_t priority;
 	struct mypthread_queue* next;
 
 }mypthread_queue;
@@ -73,9 +68,12 @@ typedef struct mypthread_mutex_t {
 
 /*
 	Thread queue functions - START
+	Along with Thread Priority Queue Functions
 */
 int mypthread_queue_enqueue(mypthread_queue **front, struct threadControlBlock *pthread_item);
 struct threadControlBlock* mypthread_queue_dequeue(mypthread_queue **front);
+int mypthread_prior_queue_enqueue(mypthread_queue **front, struct threadControlBlock* pthread_item, int priority);
+int update_priority(); // Might not use.
 void queue_cleanup(mypthread_queue*);
 
 /*

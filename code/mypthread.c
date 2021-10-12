@@ -22,6 +22,14 @@ struct threadControlBlock* current_running_thread = NULL;
 		 0: success
 		-1: failure
 */
+
+int mypthread_prior_queue_enqueue(mypthread_queue **front, struct threadControlBlock* pthread_item, int priority){
+
+	if(*front == NULL){
+		
+	}
+
+}
 int mypthread_queue_enqueue(mypthread_queue** front, struct threadControlBlock* pthread_item)
 {
 	if(*front == NULL){
@@ -278,6 +286,10 @@ static void schedule() {
 
 /* Preemptive SJF (STCF) scheduling algorithm */
 static void sched_stcf() {
+
+	mypthread_queue* ready_queue;
+	mypthread_queue* priority_queue;
+	
 	// Your own implementation of STCF
 	// (feel free to modify arguments and return types)
 
