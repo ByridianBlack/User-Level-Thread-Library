@@ -13,76 +13,108 @@
 // Used to assign thread IDs to threads
 mypthread_t threadIDCounter = 0;
 
-struct threadControlBlock* current_running_thread = NULL;
+struct threadControlBlock *current_running_thread = NULL;
+
+/* 
+        Creates a generic tcb struct with context allocated.
+        This generic tcb can then be manipulated into either the tcb of
+        the current thread (parent) or the new thread (child).
+        
+        It is the responsibility of the caller to free 
+        struct threadControlBlock and struct ucontext_t.
+        
+        0 : On success
+        1 : On failure
+*/
+int create_new_tcb(struct threadControlBlock **tcb) {
+        
+        // *tcb must be initialized to NULL
+        if (*tcb != NULL) return 1;
+
+        *tcb = malloc(sizeof(struct threadControlBlock));
+        if (*tcb == NULL) {
+                perror("malloc: ");
+                return 1;
+        }
+        
+        *tcb->threadID          = threadIDCounter;
+        *tcb->state             = ready;
+        *tcb->quantum_count     = 0;
+        *tcb->restored          = 0;
+        
+        threadIDCounter++;
+        
+        struct ucontext_t *context = malloc(sizeof(struct ucontext_t));
+        if (curContext == NULL) {
+                perror("malloc: ");
+                return 1;
+        }
+        
+        *tcb->thread_context = context;
+        
+        return 0;
+}
 
 /* create a new thread */
 int mypthread_create(mypthread_t * thread, pthread_attr_t * attr,
                       void *(*function)(void*), void * arg) {
-                              
-        struct threadControlBlock *curTCB = current_running_thread;
-        if (curTCB == NULL) {
-                curTCB = malloc(sizeof(struct threadControlBlock));
-                if (curTCB == NULL) {
-                        perror("malloc: ");
+        
+        struct threadControlBlock *currentThread = current_running_thread;
+        struct threadControlBlock *newThread     = NULL;
+        int ret;
+        
+        if (currentThread == NULL) {
+                ret = create_new_tcb(&currentThread);
+                if (ret != 0) {
+                        fprintf(STDERR_FILENO, "create_new_tcb: unable to create tcb structure\
+                                                for the current thread\n");
                         return 1;
                 }
                 
-                // threadIDCounter should always be zero since only the main
-                // thread will not have a threadControlBlock initially.
-                curTCB->threadID       = threadIDCounter;
-                curTCB->state          = running;
-                curTCB->quantum_count  = 0;
-                
-                threadIDCounter++;
-                
-                struct ucontext_t *curContext = malloc(sizeof(struct ucontext_t));
-                if (curContext == NULL) {
-                        perror("malloc: ");
+                ret = getcontext(currentThread->thread_context);
+                if (ret != 0) {
+                        perror("getcontext: ");
                         return 1;
                 }
                 
-                curTCB->thread_context = curContext;
+                // When the main thread is restored by the scheduler, it will return here.
+                // All the work past this has been done, so we should return.
+                if (currentThread != NULL && currentThread->restored) {
+                        return 1;
+                }
         }
-
-        struct threadControlBlock *newTCB = malloc(sizeof(struct threadControlBlock));
-        if (newTCB == NULL) {
-                perror("malloc: ");
+        
+        ret = create_new_tcb(&newThread);
+        if (ret != 0) {
+                fprintf(STDERR_FILENO, "create_new_tcb: unable to create tcb structure for the\
+                                        new thread\n");
                 return 1;
         }
         
-        newTCB->threadID      = threadIDCounter;
-        newTCB->state         = ready;
-        newTCB->quantum_count = 0;
-        threadIDCounter++;
-        
-        struct ucontext_t *newContext = malloc(sizeof(struct ucontext_t));
-        if (newContext == NULL) {
-                perror("malloc: ");
+        ret = getcontext(newThread->thread_context);
+        if (ret != 0) {
+                perror("getcontext: ");
                 return 1;
-        }
-        
-        if (getcontext(newContext) != 0) {
-                /*error handler*/
         }
         
         void *stack = malloc(STACK_SIZE);
         if (stack == NULL) {
-                /*error handler*/
+                perror("malloc: ");
+                return 1;
         }
         
-        newContext->uc_link           = NULL;             // Set successor stack to null
-        newContext->uc_stack.ss_sp    = stack;            // Set the starting address of the stack
-        newContext->uc_stack.ss_size  = STACK_SIZE;       // Set the size of the stack
-        newContext->uc_stack.ss_flags = 0;                // Might be necessary
+        newThread->thread_context->uc_link           = NULL;             // Set successor stack to null
+        newThread->thread_context->uc_stack.ss_sp    = stack;            // Set the starting address of the stack
+        newThread->thread_context->uc_stack.ss_size  = STACK_SIZE;       // Set the size of the stack
+        newThread->thread_context->uc_stack.ss_flags = 0;                // Might be necessary
         
         // Need to check how arg will be passed to makecontext. Seems to use varargs.
         makecontext(newContext, function, 1, arg);
         
-        // newTCB is ready to go.
-        newTCB->thread_context = newContext;
-        
-        
-        
+        if (current_running_thread == NULL) {
+                /* enqueue currentThread*/
+        }
+        /*enqueue newThread*/
         
         return 0;
 };
