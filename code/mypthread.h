@@ -1,5 +1,5 @@
 /*
-        File:                          mypthread.c
+        File:                          mypthread.h
         List all group member's name:  Philip C. Okoh, Paul Kotys
         Username of iLab:              pco23, pjk151
         iLab Server:                   ilab1
@@ -44,6 +44,7 @@ typedef struct mypthread_queue{
 	struct mypthread_queue* next;
 
 }mypthread_queue;
+
 /* mutex struct definition */
 typedef struct mypthread_mutex_t {
 	/* add something here */

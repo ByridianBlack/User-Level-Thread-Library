@@ -9,119 +9,56 @@
 
 #define STACK_SIZE 1892
 #define LOCKED 1
+
 // Used to assign thread IDs to threads
 mypthread_t threadIDCounter = 0;
+
 struct threadControlBlock* current_running_thread = NULL;
-
-
-/*
-	Enqueues the pthread into the queue;
-	This function was created and used for the mutex locking 
-	and unlocking mechanism. Might be repurposed for other cases.
-
-	returns:
-		 0: success
-		-1: failure
-*/
-
-int mypthread_prior_queue_enqueue(mypthread_queue **front, struct threadControlBlock* pthread_item, int priority){
-
-	if(*front == NULL){
-		
-	}
-
-}
-int mypthread_queue_enqueue(mypthread_queue** front, struct threadControlBlock* pthread_item)
-{
-	if(*front == NULL){
-	
-		*front = malloc(sizeof(mypthread_queue));
-	
-		(*front)->next = NULL;
-	
-		(*front)->context = pthread_item;
-	
-		return 0;
-	}
-
-	mypthread_queue* cursor = front;
-
-	while(cursor->next != NULL){
-	
-		cursor = cursor->next;
-	
-	}
-
-	cursor->next = malloc(sizeof(mypthread_queue));
-	
-	cursor->next->next = NULL;
-	
-	cursor->next->context = pthread_item;
-	
-	return 0;
-}
-
-struct threadControlBlock* mypthread_queue_dequeue(mypthread_queue **front){
-	
-	if(*front == NULL){
-	
-		return NULL;
-	
-	}
-	
-	struct threadControlBlock* ret_val = (*front)->context;
-	
-	*front = (*front)->next;
-	return ret_val;
-}
-
-
-/*
-	Cleans up the queue if any items remains
-*/
-void queue_cleanup(mypthread_queue* front)
-{
-	if(front == NULL)
-	{
-		return;
-	}
-
-	mypthread_queue* cursor = front;
-	
-	mypthread_queue* temp = NULL;
-	
-	while(cursor != NULL)
-	{
-	
-		temp = cursor;
-	
-		cursor = cursor->next;
-	
-		free(temp->context);
-	
-		free(temp);
-	}
-	
-	return;
-}
 
 /* create a new thread */
 int mypthread_create(mypthread_t * thread, pthread_attr_t * attr,
                       void *(*function)(void*), void * arg) {
+                              
+        struct threadControlBlock *curTCB = current_running_thread;
+        if (curTCB == NULL) {
+                curTCB = malloc(sizeof(struct threadControlBlock));
+                if (curTCB == NULL) {
+                        perror("malloc: ");
+                        return 1;
+                }
+                
+                // threadIDCounter should always be zero since only the main
+                // thread will not have a threadControlBlock initially.
+                curTCB->threadID       = threadIDCounter;
+                curTCB->state          = running;
+                curTCB->quantum_count  = 0;
+                
+                threadIDCounter++;
+                
+                struct ucontext_t *curContext = malloc(sizeof(struct ucontext_t));
+                if (curContext == NULL) {
+                        perror("malloc: ");
+                        return 1;
+                }
+                
+                curTCB->thread_context = curContext;
+        }
 
         struct threadControlBlock *newTCB = malloc(sizeof(struct threadControlBlock));
         if (newTCB == NULL) {
-                /*error handler*/
+                perror("malloc: ");
+                return 1;
         }
         
-        threadIDCounter++;
         newTCB->threadID      = threadIDCounter;
-        newTCB->state        = ready;
+        newTCB->state         = ready;
         newTCB->quantum_count = 0;
+        threadIDCounter++;
         
         struct ucontext_t *newContext = malloc(sizeof(struct ucontext_t));
         if (newContext == NULL) {
-                /*error handler*/
+                perror("malloc: ");
+                return 1;
         }
         
         if (getcontext(newContext) != 0) {
