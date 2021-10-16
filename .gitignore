@@ -1,0 +1,4 @@
+# Things to ignore
+.vscode
+.DS_Store
+__MACOSX/

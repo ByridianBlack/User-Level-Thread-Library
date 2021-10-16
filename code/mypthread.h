@@ -1,8 +1,9 @@
-// File:	mypthread_t.h
-
-// List all group member's name:
-// username of iLab:
-// iLab Server:
+/*
+        File:                          mypthread.c
+        List all group member's name:  Philip C. Okoh, Paul Kotys
+        Username of iLab:              pco23, pjk151
+        iLab Server:                   ilab1
+*/
 
 #ifndef MYTHREAD_T_H
 #define MYTHREAD_T_H
@@ -31,7 +32,7 @@ enum status {ready = 1, running = 2, blocked = 3};
 struct threadControlBlock {
 
 	mypthread_t threadID;           // thread id
-	ucontext_t* thread_context;      // thread context
+	ucontext_t* thread_context;     // thread context
         enum status state;              // thread status
         int quantum_count;              // number of elapsed quanta;
 };

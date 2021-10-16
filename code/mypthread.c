@@ -1,8 +1,9 @@
-// File:	mypthread.c
-
-// List all group member's name: Philip C. Okoh, Paul Kotys
-// username of iLab: pco23, pjk151
-// iLab Server: ilab1
+/*
+        File:                          mypthread.c
+        List all group member's name:  Philip C. Okoh, Paul Kotys
+        Username of iLab:              pco23, pjk151
+        iLab Server:                   ilab1
+*/
 
 #include "mypthread.h"
 
