@@ -37,24 +37,140 @@ int create_new_tcb(struct threadControlBlock **tcb) {
                 return 1;
         }
         
-        *tcb->threadID          = threadIDCounter;
-        *tcb->state             = ready;
-        *tcb->quantum_count     = 0;
-        *tcb->restored          = 0;
+        (*tcb)->threadID          = threadIDCounter;
+        (*tcb)->state             = ready;
+        (*tcb)->quantum_count     = 0;
+        (*tcb)->restored          = 0;
         
         threadIDCounter++;
         
         struct ucontext_t *context = malloc(sizeof(struct ucontext_t));
-        if (curContext == NULL) {
+        if (context == NULL) {
                 perror("malloc: ");
                 return 1;
         }
         
-        *tcb->thread_context = context;
+        (*tcb)->thread_context = context;
         
         return 0;
 }
 
+/*
+	Enqueues the pthread into the queue;
+	This function was created and used for the mutex locking 
+	and unlocking mechanism. Might be repurposed for other cases.
+
+	returns:
+		 0: success
+		-1: failure
+*/
+
+int mypthread_prior_queue_enqueue(mypthread_queue **front, struct threadControlBlock* pthread_item, int priority){
+
+	if(*front == NULL){
+		*front = malloc(sizeof(mypthread_queue));
+		(*front)->priority = priority;
+		(*front)->context = pthread_item;
+		(*front)->next = NULL;
+		return 0;
+	}
+
+	mypthread_queue *cursor = *front;
+	if(priority < cursor->priority){
+		mypthread_queue *temp = malloc(sizeof(mypthread_queue));
+		temp->priority = priority;
+		temp->next = cursor;
+		(*front) = temp;
+		return 0;
+	}
+	
+	while(cursor != NULL){
+		if(priority < cursor->priority){
+			mypthread_queue *temp = malloc(sizeof(mypthread_queue));
+			temp->priority = priority;
+			temp->next = cursor;
+			(*front) = temp;
+			return 0;
+		}
+		cursor = cursor->next;
+	}
+
+	return -1;
+}
+int mypthread_queue_enqueue(mypthread_queue** front, struct threadControlBlock* pthread_item)
+{
+	if(*front == NULL){
+	
+		*front = malloc(sizeof(mypthread_queue));
+	
+		(*front)->next = NULL;
+	
+		(*front)->context = pthread_item;
+	
+		return 0;
+	}
+
+	mypthread_queue* cursor = front;
+
+	while(cursor->next != NULL){
+	
+		cursor = cursor->next;
+	
+	}
+
+	cursor->next = malloc(sizeof(mypthread_queue));
+	
+	cursor->next->next = NULL;
+	
+	cursor->next->context = pthread_item;
+	
+	return 0;
+}
+
+
+struct threadControlBlock* mypthread_queue_dequeue(mypthread_queue **front){
+	
+	if(*front == NULL){
+	
+		return NULL;
+	
+	}
+	
+	struct threadControlBlock* ret_val = (*front)->context;
+	
+	*front = (*front)->next;
+	return ret_val;
+}
+
+
+/*
+	Cleans up the queue if any items remains
+*/
+void queue_cleanup(mypthread_queue* front)
+{
+	if(front == NULL)
+	{
+		return;
+	}
+
+	mypthread_queue* cursor = front;
+	
+	mypthread_queue* temp = NULL;
+	
+	while(cursor != NULL)
+	{
+	
+		temp = cursor;
+	
+		cursor = cursor->next;
+	
+		free(temp->context);
+	
+		free(temp);
+	}
+	
+	return;
+}
 /* create a new thread */
 int mypthread_create(mypthread_t * thread, pthread_attr_t * attr,
                       void *(*function)(void*), void * arg) {
