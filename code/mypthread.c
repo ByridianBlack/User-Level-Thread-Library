@@ -225,7 +225,7 @@ int mypthread_create(mypthread_t * thread, pthread_attr_t * attr,
         newThread->thread_context->uc_stack.ss_flags = 0;                // Might be necessary
         
         // Need to check how arg will be passed to makecontext. Seems to use varargs.
-        makecontext(newContext, function, 1, arg);
+        makecontext(newThread->thread_context, function, 1, arg);
         
         if (current_running_thread == NULL) {
                 /* enqueue currentThread*/
@@ -252,6 +252,14 @@ int mypthread_yield() {
 /* terminate a thread */
 void mypthread_exit(void *value_ptr) {
 	// Deallocated any dynamic memory created when starting this thread
+
+	struct threadControlBlock * current_thread_copy = current_running_thread;
+
+	// TELL scheduiler to yield
+	// 
+
+	free(current_thread_copy);
+
 
 	// YOUR CODE HERE
 };

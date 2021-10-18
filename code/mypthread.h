@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ucontext.h>
-
+#include <stdbool.h>
 typedef uint mypthread_t;
 
 typedef struct thread_strack{

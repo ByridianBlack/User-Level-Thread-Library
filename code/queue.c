@@ -1,3 +1,5 @@
+#include "queue.h"
+#include "mypthread.h"
 /*
         File:                          queue.c
         List all group member's name:  Philip C. Okoh, Paul Kotys
