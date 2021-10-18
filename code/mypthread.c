@@ -253,12 +253,15 @@ int mypthread_yield() {
 void mypthread_exit(void *value_ptr) {
 	// Deallocated any dynamic memory created when starting this thread
 
-	struct threadControlBlock * current_thread_copy = current_running_thread;
+	struct threadControlBlock* current_thread_copy = current_running_thread;
 
 	// TELL scheduiler to yield
-	// 
+	
+	if(value_ptr != NULL){
+		values_returned[current_thread_copy->threadID] = value_ptr;
+	}
 
-	free(current_thread_copy);
+	// free(current_thread_copy);
 
 
 	// YOUR CODE HERE
@@ -317,15 +320,23 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex) {
         // if the mutex is acquired successfully, enter the critical section
         // if acquiring mutex fails, push current thread into block list and //
         // context switch to the scheduler thread
-		if(test_and_set(&mutex->lock) == 1){
+		
+
+		if(mutex == NULL){
+			printf("Mutex has not be initialized\n");
+
+			return -1;
+		}
+
+		
+		if(__sync_lock_test_and_set(&mutex->lock, 1) == 1){
 			/*
 				Add the thread that is want the mutex into the mutex queue and then yields it.
-			*/
-
-			mypthread_queue_enqueue(&mutex->thread_queue, current_running_thread);
+			*/	
 
 			// current_thread_block->threadID = 
-
+		
+			mypthread_queue_enqueue(&mutex->thread_queue, current_running_thread);
 		}
         // YOUR CODE HERE
         return 0;

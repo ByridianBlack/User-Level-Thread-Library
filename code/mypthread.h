@@ -21,11 +21,16 @@
 #include <stdlib.h>
 #include <ucontext.h>
 #include <stdbool.h>
+
+#define SIZE_CONSTANT 9999
+
 typedef uint mypthread_t;
 
 typedef struct thread_strack{
 
 } THREAD_STACK;
+
+void* values_returned[SIZE_CONSTANT];
 
 enum status {ready = 1, running = 2, blocked = 3};
 
