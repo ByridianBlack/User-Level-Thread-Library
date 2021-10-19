@@ -79,9 +79,9 @@ int mypthread_prior_queue_enqueue(mypthread_queue **front, struct threadControlB
 
     if(pthread_item->quantum_count <= (*front)->context->quantum_count){
         mypthread_queue *temp = malloc(sizeof(mypthread_queue));
-        temp->context = (*front)->context;
         temp->next = (*front)->next;
         (*front)->next = temp;
+        temp->context = (*front)->context;
         (*front)->context = pthread_item;
         return 0;
     }
@@ -97,6 +97,11 @@ int mypthread_prior_queue_enqueue(mypthread_queue **front, struct threadControlB
         prev = cursor;
         cursor = cursor->next;
     }
+    
+    cursor = malloc(sizeof(mypthread_queue));
+    cursor->next = NULL;
+    cursor->context = pthread_item;
+    prev->next = cursor;
 
 	return -1;
 }
