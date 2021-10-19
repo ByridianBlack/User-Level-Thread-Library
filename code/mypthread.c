@@ -226,10 +226,10 @@ int mypthread_create(mypthread_t * thread, pthread_attr_t * attr,
         newThread->thread_context->uc_stack.ss_sp    = stack;            // Set the starting address of the stack
         newThread->thread_context->uc_stack.ss_size  = STACK_SIZE;       // Set the size of the stack
         newThread->thread_context->uc_stack.ss_flags = 0;                // Might be necessary
-        
+		newThread->threadID = threadIDCounter++;
         // Need to check how arg will be passed to makecontext. Seems to use varargs.
         makecontext(newThread->thread_context, function, 1, arg);
-        
+		active_threads[threadIDCounter] = newThread;
         if (current_running_thread == NULL) {
                 /* enqueue currentThread*/
         }
@@ -257,6 +257,7 @@ void mypthread_exit(void *value_ptr) {
 	// Deallocated any dynamic memory created when starting this thread
 
 	struct threadControlBlock* current_thread_copy = current_running_thread;
+	current_thread_copy->state = finished;
 
 	// TELL scheduiler to yield
 	
@@ -264,8 +265,8 @@ void mypthread_exit(void *value_ptr) {
 		values_returned[current_thread_copy->threadID] = value_ptr;
 	}
 
-	// free(current_thread_copy);
 
+	// SCHEDULER SHOULD THEN FREE THIS
 
 	// YOUR CODE HERE
 };
@@ -276,6 +277,8 @@ int mypthread_join(mypthread_t thread, void **value_ptr) {
 
 	// wait for a specific thread to terminate
 	// de-allocate any dynamic memory created by the joining thread
+
+	// struct threadControlBlock* block = active
 
 	// YOUR CODE HERE
 	return 0;

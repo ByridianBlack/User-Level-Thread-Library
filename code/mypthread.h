@@ -31,8 +31,9 @@ typedef struct thread_strack{
 } THREAD_STACK;
 
 void* values_returned[SIZE_CONSTANT];
+struct threadControlBlock* active_threads[SIZE_CONSTANT];
 
-enum status {ready = 1, running = 2, blocked = 3};
+enum status {ready = 1, running = 2, blocked = 3, finished=4};
 
 struct threadControlBlock {
 
