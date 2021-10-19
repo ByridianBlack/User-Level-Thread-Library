@@ -55,6 +55,19 @@ int create_new_tcb(struct threadControlBlock **tcb) {
         return 0;
 }
 
+struct threadControlBlock* mypthread_prior_queue_dequeue(mypthread_queue **front){
+
+
+	if(*front == NULL){
+		return NULL;
+	}
+
+	struct threadControlBlock* popped_value = (*front)->context;
+
+	(*front) = (*front)->next;
+	return popped_value;
+}
+
 /*
 	Enqueues the pthread into the queue;
 	This function was created and used for the mutex locking 
