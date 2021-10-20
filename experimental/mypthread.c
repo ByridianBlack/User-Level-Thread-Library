@@ -5,6 +5,7 @@
         iLab Server:                   ilab1
 */
 #include "mypthread.h"
+#include "queue.h"
 
 #define STACK_SIZE 1892
 #define SUCCESS 0
@@ -13,7 +14,7 @@
 mypthread_t threadCounter                = 0;     // Assigns thread IDs
 ucontext_t  schedulerContext             = {0};   // Zeroes out the schedulerContext struct
 struct threadControlBlock *currentThread = NULL;  // No thread is initially running.
-struct threadControlBlock *queueFront    = NULL;  // No thread is initially queued.
+struct mypthread_queue *front            = NULL;  // Initially, there is nothing in the queue.
 void *returnValues[1000]                 = {0};   // Zeroes out the array storing the return values of threads
 
 bool schedulerInitialized = false;

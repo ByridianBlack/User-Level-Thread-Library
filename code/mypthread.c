@@ -118,6 +118,8 @@ int mypthread_prior_queue_enqueue(mypthread_queue **front, struct threadControlB
 
 	return -1;
 }
+
+
 int mypthread_queue_enqueue(mypthread_queue** front, struct threadControlBlock* pthread_item)
 {
 	if(*front == NULL){

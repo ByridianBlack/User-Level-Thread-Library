@@ -1,40 +1,79 @@
-int mypthread_prior_queue_enqueue(mypthread_queue **front, struct threadControlBlock* pthread_item){
+/*
+        File:                          queue.c
+        List all group member's name:  Philip C. Okoh, Paul Kotys
+        Username of iLab:              pco23, pjk151
+        iLab Server:                   ilab1
+*/
+#define <stdio.h> 
+#define <stdlib.h>
 
-	if(*front == NULL){
-		*front = malloc(sizeof(mypthread_queue));
-		(*front)->context = pthread_item;
-		(*front)->next = NULL;
-		return 0;
-	}
+#define SUCCESS 0
+#define FAILURE 1
 
-    mypthread_queue* cursor = *front;
-    mypthread_queue* prev = NULL;
+struct mypthread_queue {
+        struct threadControlBlock *tcb;         // Pointer to the tcb.
+        struct mypthread_queue    *next;        // Pointer to the next node in the queue.
+};
 
-    if(pthread_item->quantum_count <= (*front)->context->quantum_count){
-        mypthread_queue *temp = malloc(sizeof(mypthread_queue));
-        temp->next = (*front)->next;
-        (*front)->next = temp;
-        temp->context = (*front)->context;
-        (*front)->context = pthread_item;
-        return 0;
-    }
+int mypthread_enqueue(struct mypthread_queue **front,
+                      struct threadControlBlock* pthread_item)
+{
+        // Case where there are no items in the queue.
+        if (*front == NULL) {
+                
+                *front = malloc(sizeof(struct mypthread_queue));
+                if (*front == NULL) {
+                        perror("Malloc : Unable to allocate space for mypthread_queue node ");
+                        exit(EXIT_FAILURE);
+                }
+                
+                (*front)->tcb  = pthread_item;
+                (*front)->next = NULL;
+                
+                return SUCCESS;
+        }
+        
+        // Create the mypthread_queue node.
+        struct mypthread_queue *temp = malloc(sizeof(struct mypthread_queue));
+        if (temp == NULL) {
+                perror("Malloc : Unable to allocate space for mypthread_queue node ");
+                exit(EXIT_FAILURE);
+        }
+        temp->tcb  = pthread_item;
+        
+        struct mypthread_queue* cursor = *front;
+        struct mypthread_queue* prev   = NULL;
+        
+        // Case where the new thread has the highest priority (added to the front of the queue).
+        if (pthread_item->quantum_count <= (*front)->tcb->quantum_count) {
+                
+                temp->next = (*front);
+                (*front)   = temp;
+                
+                return SUCCESS;
+        }
+        
+        // All other cases.
+        while (cursor != NULL) {
+                if (pthread_item->quantum_count <= cursor->tcb->quantum_count) {
+                        prev->next = temp;
+                        temp->next = cursor;
+                        
+                        return SUCCESS;
+                }
+                
+                prev   = cursor;
+                cursor = cursor->next;
+        }
+        
+        prev-next = temp;
+        
+        return EXIT_SUCCESS;
+}
 
-    while(cursor != NULL){
-        if(pthread_item->quantum_count <= cursor->context->quantum_count){
-            mypthread_queue *temp = malloc(sizeof(mypthread_queue));
-            temp->context = pthread_item;
-            prev->next = temp;
-            temp->next = cursor;
-            return 0;
-        }   
-        prev = cursor;
-        cursor = cursor->next;
-    }
-    
-    cursor = malloc(sizeof(mypthread_queue));
-    cursor->next = NULL;
-    cursor->context = pthread_item;
-    prev->next = cursor;
-
-	return -1;
+int mypthread_dequeue(struct mypthread_queue* front,
+                      struct threadControlBlock** pthread_item)
+{
+        return SUCCESS;
+        
 }
