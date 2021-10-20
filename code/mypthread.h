@@ -31,8 +31,9 @@ typedef struct thread_strack{
 } THREAD_STACK;
 
 void* values_returned[SIZE_CONSTANT];
+struct threadControlBlock* active_threads[SIZE_CONSTANT];
 
-enum status {ready = 1, running = 2, blocked = 3};
+enum status {ready = 1, running = 2, blocked = 3, finished=4};
 
 struct threadControlBlock {
 
@@ -81,6 +82,7 @@ typedef struct mypthread_mutex_t {
 int mypthread_queue_enqueue(mypthread_queue **front, struct threadControlBlock *pthread_item);
 struct threadControlBlock* mypthread_queue_dequeue(mypthread_queue **front);
 int mypthread_prior_queue_enqueue(mypthread_queue **front, struct threadControlBlock* pthread_item);
+struct threadControlBlock* mypthread_prior_queue_dequeue(mypthread_queue **front);
 int update_priority(); // Might not use.
 void queue_cleanup(mypthread_queue*);
 

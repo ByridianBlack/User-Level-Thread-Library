@@ -55,6 +55,19 @@ int create_new_tcb(struct threadControlBlock **tcb) {
         return 0;
 }
 
+struct threadControlBlock* mypthread_prior_queue_dequeue(mypthread_queue **front){
+
+
+	if(*front == NULL){
+		return NULL;
+	}
+
+	struct threadControlBlock* popped_value = (*front)->context;
+
+	(*front) = (*front)->next;
+	return popped_value;
+}
+
 /*
 	Enqueues the pthread into the queue;
 	This function was created and used for the mutex locking 
@@ -79,9 +92,9 @@ int mypthread_prior_queue_enqueue(mypthread_queue **front, struct threadControlB
 
     if(pthread_item->quantum_count <= (*front)->context->quantum_count){
         mypthread_queue *temp = malloc(sizeof(mypthread_queue));
-        temp->context = (*front)->context;
         temp->next = (*front)->next;
         (*front)->next = temp;
+        temp->context = (*front)->context;
         (*front)->context = pthread_item;
         return 0;
     }
@@ -97,6 +110,11 @@ int mypthread_prior_queue_enqueue(mypthread_queue **front, struct threadControlB
         prev = cursor;
         cursor = cursor->next;
     }
+    
+    cursor = malloc(sizeof(mypthread_queue));
+    cursor->next = NULL;
+    cursor->context = pthread_item;
+    prev->next = cursor;
 
 	return -1;
 }
@@ -226,10 +244,10 @@ int mypthread_create(mypthread_t * thread, pthread_attr_t * attr,
         newThread->thread_context->uc_stack.ss_sp    = stack;            // Set the starting address of the stack
         newThread->thread_context->uc_stack.ss_size  = STACK_SIZE;       // Set the size of the stack
         newThread->thread_context->uc_stack.ss_flags = 0;                // Might be necessary
-        
+		newThread->threadID = threadIDCounter++;
         // Need to check how arg will be passed to makecontext. Seems to use varargs.
         makecontext(newThread->thread_context, function, 1, arg);
-        
+		active_threads[threadIDCounter] = newThread;
         if (current_running_thread == NULL) {
                 /* enqueue currentThread*/
         }
@@ -257,6 +275,7 @@ void mypthread_exit(void *value_ptr) {
 	// Deallocated any dynamic memory created when starting this thread
 
 	struct threadControlBlock* current_thread_copy = current_running_thread;
+	current_thread_copy->state = finished;
 
 	// TELL scheduiler to yield
 	
@@ -264,8 +283,8 @@ void mypthread_exit(void *value_ptr) {
 		values_returned[current_thread_copy->threadID] = value_ptr;
 	}
 
-	// free(current_thread_copy);
 
+	// SCHEDULER SHOULD THEN FREE THIS
 
 	// YOUR CODE HERE
 };
@@ -276,6 +295,8 @@ int mypthread_join(mypthread_t thread, void **value_ptr) {
 
 	// wait for a specific thread to terminate
 	// de-allocate any dynamic memory created by the joining thread
+
+	// struct threadControlBlock* block = active
 
 	// YOUR CODE HERE
 	return 0;
