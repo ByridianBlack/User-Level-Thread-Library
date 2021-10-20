@@ -17,8 +17,6 @@ int test() {
 
 int main(int argc, char** argv) {
         
-        
-        
         int x = 25;
         
         int threadID = 0;
