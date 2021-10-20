@@ -16,12 +16,12 @@ typedef unsigned int mypthread_t;
 enum status {ready = 1, running = 2, blocked = 3, finished=4};
 
 struct threadControlBlock {
-
-	mypthread_t threadID;           // thread id
-	ucontext_t* thread_context;     // thread context
+        
+	ucontext_t* threadContext;      // pointer to thread context
+        
+        mypthread_t threadID;           // thread id
         enum status state;              // thread status
-        int quantum_count;              // number of elapsed quanta
-        bool restored;                  // indicates that a thread has been restored by the scheduler
+        int quantumCount;               // number of elapsed quanta
 };
 
 
