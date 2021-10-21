@@ -113,10 +113,7 @@ int create_new_thread(struct threadControlBlock **tcb, void* (*function) (void*)
 
 int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
                      void* (*function) (void*), void *args)
-{
-        *thread = threadCounter;
-        threadCounter++;
-        
+{       
         if (schedulerInitialized == false) {
                 initialize_scheduler_context();
                 schedulerInitialized = true;
@@ -124,6 +121,8 @@ int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
         
         struct threadControlBlock *newTCB = NULL;
         create_new_thread(&newTCB, function, args);
+        
+        *thread = newTCB->threadID;
         
         return 0;
         
