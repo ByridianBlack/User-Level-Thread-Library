@@ -14,7 +14,7 @@
 mypthread_t threadCounter                = 0;     // Assigns thread IDs
 ucontext_t  schedulerContext             = {0};   // Zeroes out the schedulerContext struct
 struct threadControlBlock *currentThread = NULL;  // No thread is initially running.
-struct mypthread_queue *front            = NULL;  // Initially, there is nothing in the queue.
+struct mypthread_queue *readyQueue       = NULL;  // Initially, there is nothing in the queue.
 void *returnValues[1000]                 = {0};   // Zeroes out the array storing the return values of threads
 
 bool schedulerInitialized = false;
@@ -57,11 +57,32 @@ int initialize_scheduler_context()
         return SUCCESS;
 }
 
-int initialize_scheduler_queues()
+int initialize_main_tcb(struct threadControlBlock **mainTCB)
 {
+        *mainTCB = malloc(sizeof(struct threadControlBlock));
+        if (*mainTCB == NULL) {
+                perror("Malloc : Could not allocate tcb for the main thread ");
+                exit(EXIT_FAILURE);
+        }
         
+        (*mainTCB)->threadID        = threadCounter;
+        (*mainTCB)->state           = ready;
+        (*mainTCB)->quantumCount    = 0;
+        
+        threadCounter++;
+        
+        ucontext_t *mainContext     = malloc(sizeof(struct ucontext_t));
+        if (mainContext == NULL) {
+                perror("Malloc : Could not allocate context for main ");
+                exit(EXIT_FAILURE);
+        }
+        
+        (*mainTCB)->threadContext   = mainContext;
+        
+        getcontext(mainContext);
+        
+        return SUCCESS;
 }
-
 
 int create_new_thread(struct threadControlBlock **tcb, void* (*function) (void*), void *args) 
 {
@@ -114,15 +135,35 @@ int create_new_thread(struct threadControlBlock **tcb, void* (*function) (void*)
 int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
                      void* (*function) (void*), void *args)
 {       
+        int ret;
         if (schedulerInitialized == false) {
                 initialize_scheduler_context();
                 schedulerInitialized = true;
         }
         
+        // currentThread is only null when main calls mypthread_create for the first time. 
+        if (currentThread == NULL) {
+                struct threadControlBlock *mainTCB = NULL;
+                initialize_main_tcb(&mainTCB);
+                
+                ret = mypthread_enqueue(&readyQueue, mainTCB);
+                if (ret == FAILURE) {
+                        fprintf(stderr, "Failed to enqueue main thread\n");
+                        exit(EXIT_FAILURE);
+                }
+                
+                currentThread = mainTCB;
+        }
+        
         struct threadControlBlock *newTCB = NULL;
         create_new_thread(&newTCB, function, args);
-        
         *thread = newTCB->threadID;
+        
+        ret = mypthread_enqueue(&readyQueue, newTCB);
+        if (ret == FAILURE) {
+                fprintf(stderr, "Failed to enqueue new thread\n");
+                exit(EXIT_FAILURE);
+        }
         
         return 0;
         

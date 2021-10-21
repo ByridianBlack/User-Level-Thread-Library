@@ -4,8 +4,9 @@
         Username of iLab:              pco23, pjk151
         iLab Server:                   ilab1
 */
-#define <stdio.h> 
-#define <stdlib.h>
+#include <stdio.h> 
+#include <stdlib.h>
+#include "mypthread.h"
 
 #define SUCCESS 0
 #define FAILURE 1
@@ -45,7 +46,7 @@ int mypthread_enqueue(struct mypthread_queue **front,
         struct mypthread_queue* prev   = NULL;
         
         // Case where the new thread has the highest priority (added to the front of the queue).
-        if (pthread_item->quantum_count <= (*front)->tcb->quantum_count) {
+        if (pthread_item->quantumCount <= (*front)->tcb->quantumCount) {
                 
                 temp->next = (*front);
                 (*front)   = temp;
@@ -55,7 +56,7 @@ int mypthread_enqueue(struct mypthread_queue **front,
         
         // All other cases.
         while (cursor != NULL) {
-                if (pthread_item->quantum_count <= cursor->tcb->quantum_count) {
+                if (pthread_item->quantumCount <= cursor->tcb->quantumCount) {
                         prev->next = temp;
                         temp->next = cursor;
                         
@@ -66,7 +67,7 @@ int mypthread_enqueue(struct mypthread_queue **front,
                 cursor = cursor->next;
         }
         
-        prev-next = temp;
+        prev->next = temp;
         
         return EXIT_SUCCESS;
 }
