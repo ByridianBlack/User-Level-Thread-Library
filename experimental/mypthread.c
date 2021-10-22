@@ -25,6 +25,11 @@ static void scheduler()
         
 }
 
+void SIGALRM_handler(int signum)
+{
+        return;
+}
+
 static void thread_wrapper(void* (*function) (void *), void *args)
 {
         void *returnValue       = (*function) (args);      // Calls the function on behalf of the scheduler
@@ -37,7 +42,7 @@ static void thread_wrapper(void* (*function) (void *), void *args)
         
 }
 
-int initialize_scheduler_context()
+static int initialize_scheduler_context()
 {
         getcontext(&schedulerContext);
         
@@ -57,7 +62,22 @@ int initialize_scheduler_context()
         return SUCCESS;
 }
 
-int initialize_main_tcb(struct threadControlBlock **mainTCB)
+static int initialize_signal_handler()
+{
+        struct sigaction act = {0};               // Zeroes out a sigaction struct
+        act.sa_handler = &SIGALRM_handler;        // SIGALRM_handler is the signal handler function
+        
+        int ret = sigaction(SIGALRM, &act, NULL); // Register the signal handler.
+        
+        if (ret != 0) {
+                perror("Sigaction : Failed to register the signal handler ");
+                exit(EXIT_FAILURE);
+        }
+        
+        return SUCCESS;
+}
+
+static int initialize_main_tcb(struct threadControlBlock **mainTCB)
 {
         *mainTCB = malloc(sizeof(struct threadControlBlock));
         if (*mainTCB == NULL) {
@@ -84,7 +104,7 @@ int initialize_main_tcb(struct threadControlBlock **mainTCB)
         return SUCCESS;
 }
 
-int create_new_thread(struct threadControlBlock **tcb, void* (*function) (void*), void *args) 
+static int create_new_thread(struct threadControlBlock **tcb, void* (*function) (void*), void *args) 
 {
         /* Create the tcb (thread) */
         *tcb = malloc(sizeof(struct threadControlBlock));
@@ -138,6 +158,7 @@ int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
         int ret;
         if (schedulerInitialized == false) {
                 initialize_scheduler_context();
+                initialize_signal_handler();
                 schedulerInitialized = true;
         }
         
