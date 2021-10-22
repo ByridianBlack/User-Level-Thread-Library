@@ -264,10 +264,7 @@ int mypthread_yield() {
 	// change thread state from Running to Ready
 	// save context of this thread to its thread control block
 	// wwitch from thread context to scheduler context
-
-	current_running_thread->state = ready;
-	// makecontext(current_running_thread->thread_context);
-	
+	raise(SIGALRM);
 	// YOUR CODE HERE
 	return 0;
 };
