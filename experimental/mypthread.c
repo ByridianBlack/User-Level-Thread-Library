@@ -23,28 +23,48 @@ static void scheduler()
 {
         assert(currentThread->state == running);
         
-        currentThread->state         = ready;
-        currentThread->quantumCount += 1;
-        
+        enum status currentState = currentThread->state;
         int ret;
-        ret = mypthread_enqueue(&readyQueue, currentThread);
-        if (ret != SUCCESS) {
-                fprintf(stderr, "mypthread_enqueue : Failed to add current thread to queue ");
-                exit(EXIT_FAILURE);
+        
+        if (currentState == running) {
+                currentThread->state         = ready;   // currentThread goes from running to ready.
+                currentThread->quantumCount += 1;       // currentThread finished running so quantum is incremented.
+                
+                // Running thread isn't finished. We add it back to the ready queue.
+                ret = mypthread_enqueue(&readyQueue, currentThread);
+                
+                if (ret != SUCCESS) {
+                        fprintf(stderr, "mypthread_enqueue : Failed to add current thread to queue ");
+                        exit(EXIT_FAILURE);
+                }
+                
+        } else if (currentState == finished) {
+                free(currentThread->threadContext->uc_stack.ss_sp);    // free the stack of the finished thread.
+                free(currentThread->threadContext);                    // free the context of the finished thread.
+                free(currentThread);                                   // free the tcb of the finished thread.
         }
         
+        // The following always occurs (even is state of current thread is blocked/finished)
         ret = mypthread_dequeue(&readyQueue, &currentThread);
         if (ret != SUCCESS) {
                 fprintf(stderr, "mypthread_dequeue : Failed to find a new thread to run ");
                 exit(EXIT_FAILURE);
         }
         
+        currentThread->state = running;                 // Set the state of the current thread to running.
         
+        ret = setcontext(currentThread->threadContext); // Get out of the scheduler.
+        if (ret != 0) {
+                perror("setcontext : Unable to switch to current thread ");
+                exit(EXIT_FAILURE);
+        }
         
+        return;
 }
 
 void SIGALRM_handler(int signum)
 {
+        // Save the current (running) context and switch to the scheduler.
         int ret = swapcontext(currentThread->threadContext, &schedulerContext);
         if (ret != 0) {
                 perror("swapcontext : Failed to swap the current context with the scheduler context ");
