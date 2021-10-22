@@ -21,12 +21,36 @@ bool schedulerInitialized = false;
 
 static void scheduler()
 {
-        return;
+        assert(currentThread->state == running);
+        
+        currentThread->state         = ready;
+        currentThread->quantumCount += 1;
+        
+        int ret;
+        ret = mypthread_enqueue(&readyQueue, currentThread);
+        if (ret != SUCCESS) {
+                fprintf(stderr, "mypthread_enqueue : Failed to add current thread to queue ");
+                exit(EXIT_FAILURE);
+        }
+        
+        ret = mypthread_dequeue(&readyQueue, &currentThread);
+        if (ret != SUCCESS) {
+                fprintf(stderr, "mypthread_dequeue : Failed to find a new thread to run ");
+                exit(EXIT_FAILURE);
+        }
+        
+        
         
 }
 
 void SIGALRM_handler(int signum)
 {
+        int ret = swapcontext(currentThread->threadContext, &schedulerContext);
+        if (ret != 0) {
+                perror("swapcontext : Failed to swap the current context with the scheduler context ");
+                exit(EXIT_FAILURE);
+        }
+        
         return;
 }
 
@@ -48,7 +72,7 @@ static int initialize_scheduler_context()
         
         void *stack = malloc(STACK_SIZE);
         if (stack == NULL) {
-                perror("Malloc : Could not allocate stack for the scheduler ");
+                perror("malloc : Could not allocate stack for the scheduler ");
                 exit(EXIT_FAILURE);
         }
         
@@ -70,7 +94,7 @@ static int initialize_signal_handler()
         int ret = sigaction(SIGALRM, &act, NULL); // Register the signal handler.
         
         if (ret != 0) {
-                perror("Sigaction : Failed to register the signal handler ");
+                perror("sigaction : Failed to register the signal handler ");
                 exit(EXIT_FAILURE);
         }
         
@@ -81,19 +105,19 @@ static int initialize_main_tcb(struct threadControlBlock **mainTCB)
 {
         *mainTCB = malloc(sizeof(struct threadControlBlock));
         if (*mainTCB == NULL) {
-                perror("Malloc : Could not allocate tcb for the main thread ");
+                perror("malloc : Could not allocate tcb for the main thread ");
                 exit(EXIT_FAILURE);
         }
         
         (*mainTCB)->threadID        = threadCounter;
-        (*mainTCB)->state           = ready;
+        (*mainTCB)->state           = running;
         (*mainTCB)->quantumCount    = 0;
         
         threadCounter++;
         
         ucontext_t *mainContext     = malloc(sizeof(struct ucontext_t));
         if (mainContext == NULL) {
-                perror("Malloc : Could not allocate context for main ");
+                perror("malloc : Could not allocate context for main ");
                 exit(EXIT_FAILURE);
         }
         
@@ -109,7 +133,7 @@ static int create_new_thread(struct threadControlBlock **tcb, void* (*function) 
         /* Create the tcb (thread) */
         *tcb = malloc(sizeof(struct threadControlBlock));
         if (*tcb == NULL) {
-                perror("Malloc : Could not allocate tcb for the new thread ");
+                perror("malloc : Could not allocate tcb for the new thread ");
                 exit(EXIT_FAILURE);
         }
         
@@ -128,13 +152,13 @@ static int create_new_thread(struct threadControlBlock **tcb, void* (*function) 
         
         ucontext_t *threadWrapperContext = malloc(sizeof(struct ucontext_t));
         if (threadWrapperContext == NULL) {
-                perror("Malloc : Could not allocate context for threadWrapper ");
+                perror("malloc : Could not allocate context for threadWrapper ");
                 exit(EXIT_FAILURE);
         }
         
         void *threadWrapperStack = malloc(sizeof(STACK_SIZE));
         if (threadWrapperStack == NULL) {
-                perror("Malloc : Could not allocate stack for threadWrapper ");
+                perror("malloc : Could not allocate stack for threadWrapper ");
                 exit(EXIT_FAILURE);
         }
         
@@ -164,15 +188,10 @@ int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
         
         // currentThread is only null when main calls mypthread_create for the first time. 
         if (currentThread == NULL) {
+                // Note that we do not enqueue the mainTCB since it is already the currently
+                // running thread.
                 struct threadControlBlock *mainTCB = NULL;
                 initialize_main_tcb(&mainTCB);
-                
-                ret = mypthread_enqueue(&readyQueue, mainTCB);
-                if (ret == FAILURE) {
-                        fprintf(stderr, "Failed to enqueue main thread\n");
-                        exit(EXIT_FAILURE);
-                }
-                
                 currentThread = mainTCB;
         }
         
@@ -182,9 +201,11 @@ int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
         
         ret = mypthread_enqueue(&readyQueue, newTCB);
         if (ret == FAILURE) {
-                fprintf(stderr, "Failed to enqueue new thread\n");
+                fprintf(stderr, "mypthread_enqueue : Failed to enqueue new thread\n");
                 exit(EXIT_FAILURE);
         }
+        
+        raise(SIGALRM);
         
         return 0;
         

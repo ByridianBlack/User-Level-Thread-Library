@@ -72,9 +72,20 @@ int mypthread_enqueue(struct mypthread_queue **front,
         return EXIT_SUCCESS;
 }
 
-int mypthread_dequeue(struct mypthread_queue* front,
+int mypthread_dequeue(struct mypthread_queue** front,
                       struct threadControlBlock** pthread_item)
 {
+        if (front == NULL) {
+                return FAILURE;
+        }
+        
+        // temp pointer to the front of the queue
+        struct mypthread_queue *temp = *front;
+        
+        *pthread_item = temp->tcb;
+        *front = (*front)->next;
+        free(temp);
+        
         return SUCCESS;
         
 }

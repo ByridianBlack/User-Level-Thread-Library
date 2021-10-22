@@ -15,4 +15,4 @@ struct mypthread_queue {
 int mypthread_enqueue(struct mypthread_queue**, struct threadControlBlock*);
 
 // Writes the highest priority threadControlBlock to passed in argument.
-int mypthread_dequeue(struct mypthread_queue*, struct threadControlBlock**);
+int mypthread_dequeue(struct mypthread_queue**, struct threadControlBlock**);

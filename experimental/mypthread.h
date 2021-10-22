@@ -5,6 +5,7 @@
         iLab Server:                   ilab1
 */
 
+#include <assert.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
