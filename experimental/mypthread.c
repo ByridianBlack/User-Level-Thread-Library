@@ -74,6 +74,23 @@ int mypthread_enqueue(struct mypthread_queue **front,
         return EXIT_SUCCESS;
 }
 
+int mypthread_enqueue_front(struct mypthread_queue **front,
+                            struct threadControlBlock *pthread_item)
+{
+        struct mypthread_queue *entry = malloc(sizeof(struct mypthread_queue));
+        if (entry == NULL) {
+                perror("malloc : unable to allocate space for the queue node ");
+                exit(EXIT_FAILURE);
+        }
+        
+        entry->tcb  = pthread_item;
+        entry->next = (*front);
+        
+        (*front) = entry;
+        
+        return SUCCESS;
+        
+}
 int mypthread_dequeue(struct mypthread_queue** front,
                       struct threadControlBlock** pthread_item)
 {
@@ -303,6 +320,11 @@ int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
         
 }
 
+int mypthread_yield()
+{
+        return SUCCESS;
+}
+
 int mypthread_mutex_init(mypthread_mutex_t *mutex,
                           const pthread_mutexattr_t *mutexattr) {
 	//initialize data structures for this mutex
@@ -316,8 +338,7 @@ int mypthread_mutex_init(mypthread_mutex_t *mutex,
 	mutex = malloc(sizeof(mypthread_mutex_t));
 	mutex->lock = 0;
 	mutex->flag = 0;
-	mutex->thread_queue = malloc(sizeof(struct mypthread_queue));
-	mutex->thread_queue->next = NULL;
+	mutex->thread_queue = NULL;
 	mutex->owner_id = 0;
 	// YOUR CODE HERE
 	return 0;
@@ -342,10 +363,10 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex) {
 			/*
 				Add the thread that is want the mutex into the mutex queue and then yield it.
 			*/	
-			current_running_thread->state = blocked;								// MIGHT CHANGE LATER
-			mypthread_queue_enqueue(&mutex->thread_queue, current_running_thread);
+			currentThread->state = blocked;								// MIGHT CHANGE LATER
+                        mypthread_enqueue_front(&(mutex->thread_queue), currentThread);
 			mypthread_yield();
-			// current_thread_block->threadID = 
+                        
 		
 		}
         // YOUR CODE HERE
@@ -368,12 +389,16 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex) {
 			/*
 				Need global queue of running queue;
 			*/
-			struct mypthread_queue* cursor = mypthread_queue_dequeue(mutex->thread_queue); // Current block queue
-			while(cursor != NULL){
+			struct threadControlBlock* cursor = NULL;
+                        mypthread_dequeue(&(mutex->thread_queue), &cursor);
+                        
+			while(mutex->thread_queue != NULL){
 				// add queue item to running queues; 
 
-				cursor->tcb->state = running;
-				cursor = mypthread_queue_dequeue(mutex->thread_queue);
+				cursor->state = running;
+				
+                                mypthread_dequeue(&(mutex->thread_queue), &cursor);
+                                mypthread_enqueue(&readyQueue, cursor);
 			}
 			
 		}
