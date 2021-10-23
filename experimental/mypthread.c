@@ -20,9 +20,7 @@ void *returnValues[1000]                 = {0};   // Zeroes out the array storin
 bool schedulerInitialized = false;
 
 static void scheduler()
-{
-        assert(currentThread->state == running);
-        
+{       
         enum status currentState = currentThread->state;
         int ret;
         
