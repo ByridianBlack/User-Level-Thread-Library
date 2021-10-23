@@ -322,14 +322,6 @@ int mypthread_mutex_init(mypthread_mutex_t *mutex,
 	return 0;
 };
 
-u_int8_t test_and_set(u_int8_t* lock){
-
-	u_int8_t old = &lock;
-	*lock = LOCKED;
-
-	return old;
-}
-
 /* aquire the mutex lock */
 int mypthread_mutex_lock(mypthread_mutex_t *mutex) {
         // use the built-in test-and-set atomic function to test the mutex

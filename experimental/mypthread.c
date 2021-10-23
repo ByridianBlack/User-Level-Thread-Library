@@ -302,3 +302,119 @@ int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
         return 0;
         
 }
+
+int mypthread_mutex_init(mypthread_mutex_t *mutex,
+                          const pthread_mutexattr_t *mutexattr) {
+	//initialize data structures for this mutex
+	/*
+		Mutex not successfully Initialized
+	*/
+	if(mutex == NULL)
+	{
+		return -1;
+	}
+	mutex = malloc(sizeof(mypthread_mutex_t));
+	mutex->lock = 0;
+	mutex->flag = 0;
+	mutex->thread_queue = malloc(sizeof(struct mypthread_queue));
+	mutex->thread_queue->next = NULL;
+	mutex->owner_id = 0;
+	// YOUR CODE HERE
+	return 0;
+};
+
+/* aquire the mutex lock */
+int mypthread_mutex_lock(mypthread_mutex_t *mutex) {
+        // use the built-in test-and-set atomic function to test the mutex
+        // if the mutex is acquired successfully, enter the critical section
+        // if acquiring mutex fails, push current thread into block list and //
+        // context switch to the scheduler thread
+		
+
+		if(mutex == NULL){
+			printf("Mutex has not been initialized\n");
+
+			return -1;
+		}
+
+		
+		if(__sync_lock_test_and_set(&mutex->lock, 1) == 1){
+			/*
+				Add the thread that is want the mutex into the mutex queue and then yield it.
+			*/	
+			current_running_thread->state = blocked;								// MIGHT CHANGE LATER
+			mypthread_queue_enqueue(&mutex->thread_queue, current_running_thread);
+			mypthread_yield();
+			// current_thread_block->threadID = 
+		
+		}
+        // YOUR CODE HERE
+        return 0;
+};
+
+/* release the mutex lock */
+int mypthread_mutex_unlock(mypthread_mutex_t *mutex) {
+	// Release mutex and make it available again.
+	// Put threads in block list to run queue
+	// so that they could compete for mutex later.
+
+		if(mutex == NULL){
+			printf("Mutex has not been initialized\n");
+			return -1;
+		}
+
+		if(__sync_lock_test_and_set(&mutex->lock, 0) == 0){
+			
+			/*
+				Need global queue of running queue;
+			*/
+			struct mypthread_queue* cursor = mypthread_queue_dequeue(mutex->thread_queue); // Current block queue
+			while(cursor != NULL){
+				// add queue item to running queues; 
+
+				cursor->tcb->state = running;
+				cursor = mypthread_queue_dequeue(mutex->thread_queue);
+			}
+			
+		}
+
+	// YOUR CODE HERE
+	return 0;
+};
+
+void queue_cleanup(struct mypthread_queue* front)
+{
+	if(front == NULL)
+	{
+		return;
+	}
+
+	struct mypthread_queue* cursor = front;
+	
+	struct mypthread_queue* temp = NULL;
+	
+	while(cursor != NULL)
+	{
+	
+		temp = cursor;
+	
+		cursor = cursor->next;
+	
+		free(temp->tcb);
+	
+		free(temp);
+	}
+	
+	return;
+}
+
+/* destroy the mutex */
+int mypthread_mutex_destroy(mypthread_mutex_t *mutex) {
+	// Deallocate dynamic memory created in mypthread_mutex_init
+
+	queue_cleanup(mutex->thread_queue);
+	
+	free(mutex);
+
+	return 0;
+};
