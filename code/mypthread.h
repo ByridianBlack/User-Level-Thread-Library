@@ -22,6 +22,8 @@
 #include <ucontext.h>
 #include <stdbool.h>
 
+#define	SIGALRM		14	/* Alarm clock.  */
+
 #define SIZE_CONSTANT 9999
 
 typedef uint mypthread_t;

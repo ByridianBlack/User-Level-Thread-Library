@@ -62,6 +62,7 @@ static void scheduler()
 
 void SIGALRM_handler(int signum)
 {
+        
         // Save the current (running) context and switch to the scheduler.
         int ret = swapcontext(currentThread->threadContext, &schedulerContext);
         if (ret != 0) {
