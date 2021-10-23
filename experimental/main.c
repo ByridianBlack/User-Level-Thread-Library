@@ -12,6 +12,7 @@
 int test() {
         int x = 10;
         int y = x * 2;
+        printf("y: %d\n", y);
         return y;
 }
 
@@ -22,5 +23,7 @@ int main(int argc, char** argv) {
         int threadID = 0;
         
         int ret = mypthread_create(&threadID, NULL, (void*) &test, NULL);
+        
+        printf("x: %d\n", x);
         
 }
