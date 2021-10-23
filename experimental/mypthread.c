@@ -18,11 +18,6 @@ void *returnValues[1000]                 = {0};   // Zeroes out the array storin
 
 bool schedulerInitialized = false;
 
-struct mypthread_queue {
-        struct threadControlBlock *tcb;         // Pointer to the tcb.
-        struct mypthread_queue    *next;        // Pointer to the next node in the queue.
-};
-
 int mypthread_enqueue(struct mypthread_queue **front,
                       struct threadControlBlock* pthread_item)
 {
