@@ -111,6 +111,7 @@ int mypthread_dequeue(struct mypthread_queue** front,
 
 static void scheduler()
 {       
+        
         enum status currentState = currentThread->state;
         int ret;
         
@@ -141,12 +142,13 @@ static void scheduler()
         
         currentThread->state = running;                 // Set the state of the current thread to running.
         
+        /*
         ret = setcontext(currentThread->threadContext); // Get out of the scheduler.
         if (ret != 0) {
                 perror("setcontext : Unable to switch to current thread ");
                 exit(EXIT_FAILURE);
         }
-        
+        */
         return;
 }
 
@@ -165,14 +167,15 @@ void SIGALRM_handler(int signum)
 
 static void thread_wrapper(void* (*function) (void *), void *args)
 {
-        void *returnValue       = (*function) (args);      // Calls the function on behalf of the scheduler
+        void *returnValue       = function(args);          // Calls the function on behalf of the scheduler
         pthread_t threadID      = currentThread->threadID; // Gets the threadID of the currently running thread.
         returnValues[threadID]  = returnValue;             // Saves the return value to an array.
         
         currentThread->state    = finished;                // Sets the state of the tcb to finished.
         
-        return;                                            // Returns to the scheduler context.
+        raise(SIGALRM);
         
+        return;
 }
 
 static int initialize_scheduler_context()
@@ -218,9 +221,9 @@ static int initialize_main_tcb(struct threadControlBlock **mainTCB)
                 exit(EXIT_FAILURE);
         }
         
-        (*mainTCB)->threadID        = threadCounter;
-        (*mainTCB)->state           = running;
-        (*mainTCB)->quantumCount    = 0;
+        (*mainTCB)->threadID        = threadCounter;            // Main thread should have a threadID 0
+        (*mainTCB)->state           = running;                  // Main thread is currently running thread
+        (*mainTCB)->quantumCount    = 0;                        // QuantumCount initially zero
         
         threadCounter++;
         
@@ -240,15 +243,15 @@ static int initialize_main_tcb(struct threadControlBlock **mainTCB)
 static int create_new_thread(struct threadControlBlock **tcb, void* (*function) (void*), void *args) 
 {
         /* Create the newTCB (thread) */
-        struct threadControlBlock *newTCB = malloc(sizeof(struct threadControlBlock));
-        if (newTCB == NULL) {
+        *tcb = malloc(sizeof(struct threadControlBlock));
+        if ((*tcb) == NULL) {
                 perror("malloc : Could not allocate tcb for the new thread ");
                 exit(EXIT_FAILURE);
         }
         
-        newTCB->threadID      = threadCounter;
-        newTCB->state         = ready;
-        newTCB->quantumCount  = 0;
+        (*tcb)->threadID      = threadCounter;
+        (*tcb)->state         = ready;
+        (*tcb)->quantumCount  = 0;
         
         threadCounter++;
         
@@ -256,7 +259,7 @@ static int create_new_thread(struct threadControlBlock **tcb, void* (*function) 
         /* Create the threadWrapperContext
          * The threadWrapperContext calls the passed in function, saves its return value to a global
          * array, sets the status of the thread to finished, and switches to the scheduler context
-         * by setting uc_link to schedulerContext. 
+         * by invoking the signal handler.
          */
         
         ucontext_t *threadWrapperContext = malloc(sizeof(struct ucontext_t));
@@ -278,10 +281,8 @@ static int create_new_thread(struct threadControlBlock **tcb, void* (*function) 
         threadWrapperContext->uc_stack.ss_size  = STACK_SIZE;           // Set the size of the stack.
         threadWrapperContext->uc_stack.ss_flags = 0;                    // Might be necessary.
         
-        makecontext(threadWrapperContext, thread_wrapper, 2, function, args);
-        newTCB->threadContext = threadWrapperContext;
-        
-        *tcb = newTCB;
+        makecontext(threadWrapperContext, (void *) thread_wrapper, 2, function, args);
+        (*tcb)->threadContext = threadWrapperContext;
         
         return SUCCESS;
 }
@@ -317,9 +318,9 @@ int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
                 fprintf(stderr, "mypthread_enqueue : Failed to enqueue new thread\n");
                 exit(EXIT_FAILURE);
         }
-        /*
+        
         raise(SIGALRM);
-        */
+        
         return 0;
         
 }
