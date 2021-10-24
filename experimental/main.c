@@ -9,20 +9,24 @@
 #include <stdlib.h>
 #include "mypthread.h"
 
-int test() {
+void *test(void *other) {
         int x = 10;
         int y = x * 2;
         printf("y: %d\n", y);
-        return y;
+        return NULL;
 }
 
 int main(int argc, char** argv) {
         
         int x = 25;
         
-        int threadID = 0;
+        unsigned threadID = 0;
         
-        int ret = mypthread_create(&threadID, NULL, (void*) &test, NULL);
+        int ret = mypthread_create(&threadID, NULL, test, NULL);
+        if (ret != 0) {
+                fprintf(stderr, "mypthread_create : unable to create thread ");
+                exit(EXIT_FAILURE);
+        }
         
         printf("x: %d\n", x);
         

@@ -239,16 +239,16 @@ static int initialize_main_tcb(struct threadControlBlock **mainTCB)
 
 static int create_new_thread(struct threadControlBlock **tcb, void* (*function) (void*), void *args) 
 {
-        /* Create the tcb (thread) */
-        *tcb = malloc(sizeof(struct threadControlBlock));
-        if (*tcb == NULL) {
+        /* Create the newTCB (thread) */
+        struct threadControlBlock *newTCB = malloc(sizeof(struct threadControlBlock));
+        if (newTCB == NULL) {
                 perror("malloc : Could not allocate tcb for the new thread ");
                 exit(EXIT_FAILURE);
         }
         
-        (*tcb)->threadID      = threadCounter;
-        (*tcb)->state         = ready;
-        (*tcb)->quantumCount  = 0;
+        newTCB->threadID      = threadCounter;
+        newTCB->state         = ready;
+        newTCB->quantumCount  = 0;
         
         threadCounter++;
         
@@ -265,7 +265,7 @@ static int create_new_thread(struct threadControlBlock **tcb, void* (*function) 
                 exit(EXIT_FAILURE);
         }
         
-        void *threadWrapperStack = malloc(sizeof(STACK_SIZE));
+        void *threadWrapperStack = malloc(STACK_SIZE);
         if (threadWrapperStack == NULL) {
                 perror("malloc : Could not allocate stack for threadWrapper ");
                 exit(EXIT_FAILURE);
@@ -273,14 +273,15 @@ static int create_new_thread(struct threadControlBlock **tcb, void* (*function) 
         
         getcontext(threadWrapperContext);
         
-        threadWrapperContext->uc_link           = &schedulerContext;    // Set the successor context to the scheduler.
+        threadWrapperContext->uc_link           = 0;                    // Set successor context to null.
         threadWrapperContext->uc_stack.ss_sp    = threadWrapperStack;   // Set the starting address of the stack.
         threadWrapperContext->uc_stack.ss_size  = STACK_SIZE;           // Set the size of the stack.
         threadWrapperContext->uc_stack.ss_flags = 0;                    // Might be necessary.
         
-        makecontext(threadWrapperContext, (void *) &thread_wrapper, 2, function, args);
+        makecontext(threadWrapperContext, thread_wrapper, 2, function, args);
+        newTCB->threadContext = threadWrapperContext;
         
-        (*tcb)->threadContext = threadWrapperContext;
+        *tcb = newTCB;
         
         return SUCCESS;
 }
@@ -288,12 +289,12 @@ static int create_new_thread(struct threadControlBlock **tcb, void* (*function) 
 int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
                      void* (*function) (void*), void *args)
 {       
-        int ret;
         if (schedulerInitialized == false) {
                 initialize_scheduler_context();
                 initialize_signal_handler();
                 schedulerInitialized = true;
         }
+        
         
         // currentThread is only null when main calls mypthread_create for the first time. 
         if (currentThread == NULL) {
@@ -304,18 +305,21 @@ int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
                 currentThread = mainTCB;
         }
         
+        
         struct threadControlBlock *newTCB = NULL;
         create_new_thread(&newTCB, function, args);
         *thread = newTCB->threadID;
         
+        
+        int ret;
         ret = mypthread_enqueue(&readyQueue, newTCB);
         if (ret == FAILURE) {
                 fprintf(stderr, "mypthread_enqueue : Failed to enqueue new thread\n");
                 exit(EXIT_FAILURE);
         }
-        
+        /*
         raise(SIGALRM);
-        
+        */
         return 0;
         
 }
