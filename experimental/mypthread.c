@@ -174,9 +174,7 @@ static void thread_wrapper(void* (*function) (void *), void *args)
         
         currentThread->state    = finished;                // Sets the state of the tcb to finished.
         
-        raise(SIGALRM);
-        
-        return;
+        return;                                            // Should return to the scheduler context.
 }
 
 static int initialize_scheduler_context()
@@ -274,7 +272,7 @@ static int create_new_thread(struct threadControlBlock **tcb, void* (*function) 
         
         getcontext(threadWrapperContext);
         
-        threadWrapperContext->uc_link           = 0;                    // Set successor context to null.
+        threadWrapperContext->uc_link           = &schedulerContext;    // Set the successor context to the scheduler context
         threadWrapperContext->uc_stack.ss_sp    = threadWrapperStack;   // Set the starting address of the stack.
         threadWrapperContext->uc_stack.ss_size  = STACK_SIZE;           // Set the size of the stack.
         threadWrapperContext->uc_stack.ss_flags = 0;                    // Might be necessary.
@@ -310,14 +308,18 @@ int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
         *thread = newTCB->threadID;
         
         
-        int ret;
+        int ret = 0;
         ret = mypthread_enqueue(&readyQueue, newTCB);
         if (ret == FAILURE) {
                 fprintf(stderr, "mypthread_enqueue : Failed to enqueue new thread\n");
                 exit(EXIT_FAILURE);
         }
         
-        raise(SIGALRM);
+        ret = swapcontext(currentThread->threadContext, &schedulerContext);
+        if (ret != 0) {
+                perror("swapcontext : Failed to swap the current context with the scheduler context ");
+                exit(EXIT_FAILURE);
+        }
         
         return 0;
         
