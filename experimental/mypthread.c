@@ -6,7 +6,7 @@
 */
 #include "mypthread.h"
 
-#define STACK_SIZE 1892
+#define STACK_SIZE 1048576
 #define SUCCESS 0
 #define FAILURE 1
 
@@ -111,9 +111,10 @@ int mypthread_dequeue(struct mypthread_queue** front,
 
 static void scheduler()
 {       
-        
         enum status currentState = currentThread->state;
         int ret;
+        
+        assert(currentState != ready);
         
         if (currentState == running) {
                 currentThread->state         = ready;   // currentThread goes from running to ready.
@@ -142,13 +143,13 @@ static void scheduler()
         
         currentThread->state = running;                 // Set the state of the current thread to running.
         
-        /*
+        
         ret = setcontext(currentThread->threadContext); // Get out of the scheduler.
         if (ret != 0) {
                 perror("setcontext : Unable to switch to current thread ");
                 exit(EXIT_FAILURE);
         }
-        */
+        
         return;
 }
 
@@ -234,9 +235,6 @@ static int initialize_main_tcb(struct threadControlBlock **mainTCB)
         }
         
         (*mainTCB)->threadContext   = mainContext;
-        
-        getcontext(mainContext);
-        
         return SUCCESS;
 }
 
