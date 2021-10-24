@@ -5,12 +5,22 @@
         iLab Server:                   ilab1
 */
 
+#ifndef MYTHREAD_T_H
+#define MYTHREAD_T_H
+
+#define _GNU_SOURCE
+
+/* To use Linux pthread Library in Benchmark, you have to comment the USE_MYTHREAD macro */
+#define USE_MYTHREAD 1
+
 #include <assert.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 #include <ucontext.h>
 
 // Used as a semantic type for thread IDs.
@@ -58,3 +68,18 @@ int mypthread_mutex_lock(mypthread_mutex_t*);
 int mypthread_mutex_unlock(mypthread_mutex_t*);
 
 int mypthread_mutex_destroy(mypthread_mutex_t*);
+
+
+#ifdef USE_MYTHREAD
+#define pthread_t mypthread_t
+#define pthread_mutex_t mypthread_mutex_t
+#define pthread_create mypthread_create
+#define pthread_exit mypthread_exit
+#define pthread_join mypthread_join
+#define pthread_mutex_init mypthread_mutex_init
+#define pthread_mutex_lock mypthread_mutex_lock
+#define pthread_mutex_unlock mypthread_mutex_unlock
+#define pthread_mutex_destroy mypthread_mutex_destroy
+#endif
+
+#endif

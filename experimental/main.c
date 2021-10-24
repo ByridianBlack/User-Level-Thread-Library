@@ -12,7 +12,7 @@
 void *test(void *other) {
         int x = 10;
         int y = x * 2;
-        //printf("y: %d\n", y);
+        printf("y: %d\n", y);
         return NULL;
 }
 
@@ -22,11 +22,14 @@ int main(int argc, char** argv) {
         
         unsigned threadID = 0;
         
-        int ret = mypthread_create(&threadID, NULL, test, NULL);
-        if (ret != 0) {
-                fprintf(stderr, "mypthread_create : unable to create thread ");
-                exit(EXIT_FAILURE);
+        for(int i = 0; i < 100; i++){
+                int ret = mypthread_create(&threadID, NULL, test, NULL);
         }
+
+        // if (ret != 0) {
+        //         fprintf(stderr, "mypthread_create : unable to create thread ");
+        //         exit(EXIT_FAILURE);
+        // }
         
         printf("x: %d\n", x);
         
