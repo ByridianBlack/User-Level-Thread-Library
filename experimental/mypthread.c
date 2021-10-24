@@ -103,7 +103,7 @@ int mypthread_dequeue(struct mypthread_queue** front,
         
         *pthread_item = temp->tcb;
         *front = (*front)->next;
-        free(temp);
+        // free(temp);
         
         return SUCCESS;
         
