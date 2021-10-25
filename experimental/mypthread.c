@@ -172,9 +172,9 @@ static void scheduler()
                 }
                 
         } else if (currentState == finished) {
-                free(currentThread->threadContext->uc_stack.ss_sp);    // free the stack of the finished thread.
-                free(currentThread->threadContext);                    // free the context of the finished thread.
-                free(currentThread);                                   // free the tcb of the finished thread.
+                //free(currentThread->threadContext->uc_stack.ss_sp);    // free the stack of the finished thread.
+                //free(currentThread->threadContext);                    // free the context of the finished thread.
+                //free(currentThread);                                   // free the tcb of the finished thread.
         }
         
         // The following always occurs (even is state of current thread is blocked/finished)
@@ -496,7 +496,7 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex) {
 
 		ignoreTimer = true;
 
-                if(mutex->lock = 1){
+                if(mutex->lock == 1){
                         mutex->lock = 0;
                         struct threadControlBlock* cursor = NULL;
                         mypthread_dequeue(&(mutex->thread_queue), &cursor);

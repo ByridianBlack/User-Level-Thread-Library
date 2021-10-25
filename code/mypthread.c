@@ -4,321 +4,451 @@
         Username of iLab:              pco23, pjk151
         iLab Server:                   ilab1
 */
-
 #include "mypthread.h"
 
-#define STACK_SIZE 1892
-#define LOCKED 1
+#define STACK_SIZE 1048576
+#define TIME_INTERVAL 20
+#define SUCCESS 0
+#define FAILURE 1
 
-// Used to assign thread IDs to threads
-mypthread_t threadIDCounter = 0;
+mypthread_t threadCounter                = 0;     // Assigns thread IDs
+ucontext_t*  schedulerContext            = NULL;  // Zeroes out the schedulerContext struct
+struct threadControlBlock *currentThread = NULL;  // No thread is initially running.
+struct mypthread_queue *readyQueue       = NULL;  // Queue to store the ready threads.
+struct mypthread_queue *blockedQueue     = NULL;  // Queue to store the blocked threads 
+void *returnValues[1000]                 = {0};   // Zeroes out the array storing the return values of threads
 
-struct threadControlBlock *current_running_thread = NULL;
+bool schedulerInitialized = false;
+bool ignoreTimer          = false;
 
-/* 
-        Creates a generic tcb struct with context allocated.
-        This generic tcb can then be manipulated into either the tcb of
-        the current thread (parent) or the new thread (child).
+
+void getID(){
+        printf("CurrentThreadID:%d\n", currentThread->threadID);
+}
+int mypthread_enqueue(struct mypthread_queue **front,
+                      struct threadControlBlock* pthread_item)
+{
+        ignoreTimer = true;
         
-        It is the responsibility of the caller to free 
-        struct threadControlBlock and struct ucontext_t.
-        
-        0 : On success
-        1 : On failure
-*/
-int create_new_tcb(struct threadControlBlock **tcb) {
-        
-        // *tcb must be initialized to NULL
-        if (*tcb != NULL) return 1;
-
-        *tcb = malloc(sizeof(struct threadControlBlock));
-        if (*tcb == NULL) {
-                perror("malloc: ");
-                return 1;
+        // Case where there are no items in the queue.
+        if (*front == NULL) {
+                
+                *front = malloc(sizeof(struct mypthread_queue));
+                if (*front == NULL) {
+                        perror("Malloc : Unable to allocate space for mypthread_queue node ");
+                        exit(EXIT_FAILURE);
+                }
+                
+                (*front)->tcb  = pthread_item;
+                (*front)->next = NULL;
+                
+                return SUCCESS;
         }
         
-        (*tcb)->threadID          = threadIDCounter;
-        (*tcb)->state             = ready;
-        (*tcb)->quantum_count     = 0;
-        (*tcb)->restored          = 0;
+        // Create the mypthread_queue node.
+        struct mypthread_queue *temp = malloc(sizeof(struct mypthread_queue));
+        if (temp == NULL) {
+                perror("Malloc : Unable to allocate space for mypthread_queue node ");
+                exit(EXIT_FAILURE);
+        }
+        temp->tcb  = pthread_item;
         
-        threadIDCounter++;
+        struct mypthread_queue* cursor = *front;
+        struct mypthread_queue* prev   = NULL;
         
-        struct ucontext_t *context = malloc(sizeof(struct ucontext_t));
-        if (context == NULL) {
-                perror("malloc: ");
-                return 1;
+        // Case where the new thread has the highest priority (added to the front of the queue).
+        if (pthread_item->quantumCount <= (*front)->tcb->quantumCount) {
+                
+                temp->next = (*front);
+                (*front)   = temp;
+                
+                return SUCCESS;
         }
         
-        (*tcb)->thread_context = context;
+        // All other cases.
+        while (cursor != NULL) {
+                if (pthread_item->quantumCount <= cursor->tcb->quantumCount) {
+                        prev->next = temp;
+                        temp->next = cursor;
+                        
+                        return SUCCESS;
+                }
+                
+                prev   = cursor;
+                cursor = cursor->next;
+        }
         
-        return 0;
-}
-
-struct threadControlBlock* mypthread_prior_queue_dequeue(mypthread_queue **front){
-
-
-	if(*front == NULL){
-		return NULL;
-	}
-
-	struct threadControlBlock* popped_value = (*front)->context;
-
-	(*front) = (*front)->next;
-	return popped_value;
-}
-
-/*
-	Enqueues the pthread into the queue;
-	This function was created and used for the mutex locking 
-	and unlocking mechanism. Might be repurposed for other cases.
-
-	returns:
-		 0: success
-		-1: failure
-*/
-
-int mypthread_prior_queue_enqueue(mypthread_queue **front, struct threadControlBlock* pthread_item){
-
-	if(*front == NULL){
-		*front = malloc(sizeof(mypthread_queue));
-		(*front)->context = pthread_item;
-		(*front)->next = NULL;
-		return 0;
-	}
-
-    mypthread_queue* cursor = *front;
-    mypthread_queue* prev = NULL;
-
-    if(pthread_item->quantum_count <= (*front)->context->quantum_count){
-        mypthread_queue *temp = malloc(sizeof(mypthread_queue));
-        temp->next = (*front)->next;
-        (*front)->next = temp;
-        temp->context = (*front)->context;
-        (*front)->context = pthread_item;
-        return 0;
-    }
-
-    while(cursor != NULL){
-        if(pthread_item->quantum_count <= cursor->context->quantum_count){
-            mypthread_queue *temp = malloc(sizeof(mypthread_queue));
-            temp->context = pthread_item;
-            prev->next = temp;
-            temp->next = cursor;
-            return 0;
-        }   
-        prev = cursor;
-        cursor = cursor->next;
-    }
-    
-    cursor = malloc(sizeof(mypthread_queue));
-    cursor->next = NULL;
-    cursor->context = pthread_item;
-    prev->next = cursor;
-
-	return -1;
-}
-
-
-int mypthread_queue_enqueue(mypthread_queue** front, struct threadControlBlock* pthread_item)
-{
-	if(*front == NULL){
-	
-		*front = malloc(sizeof(mypthread_queue));
-	
-		(*front)->next = NULL;
-	
-		(*front)->context = pthread_item;
-	
-		return 0;
-	}
-
-	mypthread_queue* cursor = front;
-
-	while(cursor->next != NULL){
-	
-		cursor = cursor->next;
-	
-	}
-
-	cursor->next = malloc(sizeof(mypthread_queue));
-	
-	cursor->next->next = NULL;
-	
-	cursor->next->context = pthread_item;
-	
-	return 0;
-}
-
-
-struct threadControlBlock* mypthread_queue_dequeue(mypthread_queue **front){
-	
-	if(*front == NULL) return NULL;
-
-	struct threadControlBlock* ret_val = (*front)->context;
-	
-	*front = (*front)->next;
-	return ret_val;
-}
-
-
-/*
-	Cleans up the queue if any items remains
-*/
-void queue_cleanup(mypthread_queue* front)
-{
-	if(front == NULL)
-	{
-		return;
-	}
-
-	mypthread_queue* cursor = front;
-	
-	mypthread_queue* temp = NULL;
-	
-	while(cursor != NULL)
-	{
-	
-		temp = cursor;
-	
-		cursor = cursor->next;
-	
-		free(temp->context);
-	
-		free(temp);
-	}
-	
-	return;
-}
-/* create a new thread */
-int mypthread_create(mypthread_t * thread, pthread_attr_t * attr,
-                      void *(*function)(void*), void * arg) {
+        prev->next = temp;
         
-        struct threadControlBlock *currentThread = current_running_thread;
-        struct threadControlBlock *newThread     = NULL;
+        ignoreTimer = false;
+        
+        return EXIT_SUCCESS;
+}
+
+int mypthread_enqueue_front(struct mypthread_queue **front,
+                            struct threadControlBlock *pthread_item)
+{
+        ignoreTimer = true;
+        
+        struct mypthread_queue *entry = malloc(sizeof(struct mypthread_queue));
+        if (entry == NULL) {
+                perror("malloc : unable to allocate space for the queue node ");
+                exit(EXIT_FAILURE);
+        }
+        
+        entry->tcb  = pthread_item;
+        entry->next = (*front);
+        
+        (*front) = entry;
+        
+        ignoreTimer = false;
+        
+        return SUCCESS;
+        
+}
+int mypthread_dequeue(struct mypthread_queue** front,
+                      struct threadControlBlock** pthread_item)
+{
+        ignoreTimer = true;
+        
+        if (*front == NULL) {
+                exit(0);
+                return FAILURE;
+        }
+        
+        // temp pointer to the front of the queue
+        struct mypthread_queue *temp = *front;
+        
+        *pthread_item = temp->tcb;
+        *front = (*front)->next;
+        // free(temp);
+        
+        ignoreTimer = false;
+        
+        return SUCCESS;
+        
+}
+
+void start_timer()
+{
+        struct itimerval timer;
+        
+        // Set the period between now and the first timer interrupt
+        timer.it_value.tv_sec   = 0;                            // Timer does not last for over a second
+        timer.it_value.tv_usec  = TIME_INTERVAL * 1000;         // Convert milliseconds to microseconds
+        
+        // Set the period between each timer interrupt
+        timer.it_interval.tv_sec = 0;
+        timer.it_interval.tv_usec = TIME_INTERVAL * 1000;
+        
+        int ret = setitimer(ITIMER_REAL, &timer, NULL);
+        if (ret != 0) {
+                perror("setitimer : unable to set the timer ");
+                exit(EXIT_FAILURE);
+        }
+}
+
+static void scheduler()
+{       
+        ignoreTimer = true;
+        
+        //start_timer();
+        
+        enum status currentState = currentThread->state;
         int ret;
         
-        if (currentThread == NULL) {
-                ret = create_new_tcb(&currentThread);
-                if (ret != 0) {
-                        fprintf(STDERR_FILENO, "create_new_tcb: unable to create tcb structure\
-                                                for the current thread\n");
-                        return 1;
+        assert(currentState != ready);
+        
+        if (currentState == running) {
+                currentThread->state         = ready;   // currentThread goes from running to ready.
+                currentThread->quantumCount += 1;       // currentThread finished running so quantum is incremented.
+                
+                // Running thread isn't finished. We add it back to the ready queue.
+                ret = mypthread_enqueue(&readyQueue, currentThread);
+                
+                if (ret != SUCCESS) {
+                        fprintf(stderr, "mypthread_enqueue : Failed to add current thread to queue ");
+                        exit(EXIT_FAILURE);
                 }
                 
-                ret = getcontext(currentThread->thread_context);
-                if (ret != 0) {
-                        perror("getcontext: ");
-                        return 1;
-                }
-                
-                // When the main thread is restored by the scheduler, it will return here.
-                // All the work past this has been done, so we should return.
-                if (currentThread != NULL && currentThread->restored) {
-                        return 1;
-                }
+        } else if (currentState == finished) {
+                //free(currentThread->threadContext->uc_stack.ss_sp);    // free the stack of the finished thread.
+                //free(currentThread->threadContext);                    // free the context of the finished thread.
+                //free(currentThread);                                   // free the tcb of the finished thread.
         }
         
-        ret = create_new_tcb(&newThread);
-        if (ret != 0) {
-                fprintf(STDERR_FILENO, "create_new_tcb: unable to create tcb structure for the\
-                                        new thread\n");
-                return 1;
+        // The following always occurs (even is state of current thread is blocked/finished)
+        ret = mypthread_dequeue(&readyQueue, &currentThread);
+        if (ret != SUCCESS) {
+                fprintf(stderr, "mypthread_dequeue : Failed to find a new thread to run ");
+                exit(EXIT_FAILURE);
         }
         
-        ret = getcontext(newThread->thread_context);
+        currentThread->state = running;                 // Set the state of the current thread to running.
+        
+        ignoreTimer = false;
+        
+        ret = setcontext(currentThread->threadContext); // Get out of the scheduler.
         if (ret != 0) {
-                perror("getcontext: ");
-                return 1;
+                perror("setcontext : Unable to switch to current thread ");
+                exit(EXIT_FAILURE);
         }
+        
+}
+
+void SIGALRM_handler(int signum)
+{
+        
+        if (ignoreTimer == true) return;
+        
+        // Save the current (running) context and switch to the scheduler.
+        int ret = swapcontext(currentThread->threadContext, schedulerContext);
+        if (ret != 0) {
+                perror("swapcontext : Failed to swap the current context with the scheduler context ");
+                exit(EXIT_FAILURE);
+        }
+        
+        return;
+}
+
+static void thread_wrapper(void* (*function) (void *), void *args)
+{
+        void *returnValue       = function(args);          // Calls the function on behalf of the scheduler
+        pthread_t threadID      = currentThread->threadID; // Gets the threadID of the currently running thread.
+        returnValues[threadID]  = returnValue;             // Saves the return value to an array.
+        
+        currentThread->state    = finished;                // Sets the state of the tcb to finished.
+        
+        return;                                            // Should return to the scheduler context.
+}
+
+static int initialize_scheduler_context()
+{
+        ignoreTimer = true;
+        
+        schedulerContext = malloc(sizeof(struct ucontext_t));
+        if (schedulerContext == NULL) {
+                perror("Malloc : Unable to allocate space for scheduler context ");
+                exit(EXIT_FAILURE);
+        }
+        
+        getcontext(schedulerContext);
         
         void *stack = malloc(STACK_SIZE);
         if (stack == NULL) {
-                perror("malloc: ");
-                return 1;
+                perror("malloc : Could not allocate stack for the scheduler ");
+                exit(EXIT_FAILURE);
         }
         
-        newThread->thread_context->uc_link           = NULL;             // Set successor stack to null
-        newThread->thread_context->uc_stack.ss_sp    = stack;            // Set the starting address of the stack
-        newThread->thread_context->uc_stack.ss_size  = STACK_SIZE;       // Set the size of the stack
-        newThread->thread_context->uc_stack.ss_flags = 0;                // Might be necessary
-		newThread->threadID = threadIDCounter++;
-        // Need to check how arg will be passed to makecontext. Seems to use varargs.
-        makecontext(newThread->thread_context, function, 1, arg);
-		active_threads[threadIDCounter] = newThread;
-        if (current_running_thread == NULL) {
-                /* enqueue currentThread*/
+        schedulerContext->uc_link            = 0;          // Set successor context to null
+        schedulerContext->uc_stack.ss_sp     = stack;      // Set the starting address of the stack
+        schedulerContext->uc_stack.ss_size   = STACK_SIZE; // Set the size of the stack
+        schedulerContext->uc_stack.ss_flags  = 0;          // Might be necessary
+        
+        makecontext(schedulerContext, (void *) &scheduler, 0);
+        
+        ignoreTimer = false;
+        
+        return SUCCESS;
+}
+
+static int initialize_signal_handler()
+{
+        ignoreTimer = true;
+        
+        struct sigaction act = {0};               // Zeroes out a sigaction struct
+        act.sa_handler = &SIGALRM_handler;        // SIGALRM_handler is the signal handler function
+        
+        int ret = sigaction(SIGALRM, &act, NULL); // Register the signal handler.
+        
+        if (ret != 0) {
+                perror("sigaction : Failed to register the signal handler ");
+                exit(EXIT_FAILURE);
         }
-        /*enqueue newThread*/
+        
+        ignoreTimer = false;
+        
+        return SUCCESS;
+}
+
+static int initialize_main_tcb(struct threadControlBlock **mainTCB)
+{
+        ignoreTimer = true;
+        
+        *mainTCB = malloc(sizeof(struct threadControlBlock));
+        if (*mainTCB == NULL) {
+                perror("malloc : Could not allocate tcb for the main thread ");
+                exit(EXIT_FAILURE);
+        }
+        
+        (*mainTCB)->threadID        = threadCounter;            // Main thread should have a threadID 0
+        (*mainTCB)->state           = running;                  // Main thread is currently running thread
+        (*mainTCB)->quantumCount    = 0;                        // QuantumCount initially zero
+        (*mainTCB)->waitingID       = 0;                        // Thread not waiting on any thread
+        
+        threadCounter++;
+        
+        ucontext_t *mainContext     = malloc(sizeof(struct ucontext_t));
+        if (mainContext == NULL) {
+                perror("malloc : Could not allocate context for main ");
+                exit(EXIT_FAILURE);
+        }
+        
+        (*mainTCB)->threadContext   = mainContext;
+        
+        ignoreTimer = false;
+        return SUCCESS;
+}
+
+static int create_new_thread(struct threadControlBlock **tcb, void* (*function) (void*), void *args) 
+{
+        ignoreTimer = true;
+        
+        /* Create the newTCB (thread) */
+        *tcb = malloc(sizeof(struct threadControlBlock));
+        if ((*tcb) == NULL) {
+                perror("malloc : Could not allocate tcb for the new thread ");
+                exit(EXIT_FAILURE);
+        }
+        
+        (*tcb)->threadID      = threadCounter;
+        (*tcb)->state         = ready;
+        (*tcb)->quantumCount  = 0;
+        (*tcb)->waitingID     = 0;
+        
+        threadCounter++;
+        
+        
+        /* Create the threadWrapperContext
+         * The threadWrapperContext calls the passed in function, saves its return value to a global
+         * array, sets the status of the thread to finished, and switches to the scheduler context
+         * by invoking the signal handler.
+         */
+        
+        ucontext_t *threadWrapperContext = malloc(sizeof(struct ucontext_t));
+        if (threadWrapperContext == NULL) {
+                perror("malloc : Could not allocate context for threadWrapper ");
+                exit(EXIT_FAILURE);
+        }
+        
+        void *threadWrapperStack = malloc(STACK_SIZE);
+        if (threadWrapperStack == NULL) {
+                perror("malloc : Could not allocate stack for threadWrapper ");
+                exit(EXIT_FAILURE);
+        }
+        
+        getcontext(threadWrapperContext);
+        
+        threadWrapperContext->uc_link           = schedulerContext;     // Set the successor context to the scheduler context
+        threadWrapperContext->uc_stack.ss_sp    = threadWrapperStack;   // Set the starting address of the stack.
+        threadWrapperContext->uc_stack.ss_size  = STACK_SIZE;           // Set the size of the stack.
+        threadWrapperContext->uc_stack.ss_flags = 0;                    // Might be necessary.
+        
+        makecontext(threadWrapperContext, (void *) thread_wrapper, 2, function, args);
+        (*tcb)->threadContext = threadWrapperContext;
+        
+        ignoreTimer = false;
+        return SUCCESS;
+}
+
+int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
+                     void* (*function) (void*), void *args)
+{
+        
+        if (schedulerInitialized == false) {
+                initialize_scheduler_context();
+                initialize_signal_handler();
+                schedulerInitialized = true;
+        }
+        
+        
+        // currentThread is only null when main calls mypthread_create for the first time. 
+        if (currentThread == NULL) {
+                // Note that we do not enqueue the mainTCB since it is already the currently
+                // running thread.
+                struct threadControlBlock *mainTCB = NULL;
+                initialize_main_tcb(&mainTCB);
+                currentThread = mainTCB;
+        }
+        
+        
+        struct threadControlBlock *newTCB = NULL;
+        create_new_thread(&newTCB, function, args);
+        *thread = newTCB->threadID;
+        
+        
+        int ret = 0;
+        ret = mypthread_enqueue(&readyQueue, newTCB);
+        if (ret == FAILURE) {
+                fprintf(stderr, "mypthread_enqueue : Failed to enqueue new thread\n");
+                exit(EXIT_FAILURE);
+        }
+        
+        ret = swapcontext(currentThread->threadContext, schedulerContext);
+        if (ret != 0) {
+                perror("swapcontext : Failed to swap the current context with the scheduler context ");
+                exit(EXIT_FAILURE);
+        }
         
         return 0;
-};
+        
+}
 
-/* give CPU possession to other user-level threads voluntarily */
-int mypthread_yield() {
+int mypthread_yield()
+{
+        int ret = swapcontext(currentThread->threadContext, schedulerContext);
+        if (ret != 0) {
+                perror("swapcontext : Failed to swap the current context with the scheduler context ");
+                exit(EXIT_FAILURE);
+        }
+        
+        return SUCCESS;
+}
 
-	// change thread state from Running to Ready
-	// save context of this thread to its thread control block
-	// wwitch from thread context to scheduler context
-	raise(SIGALRM);
-	// YOUR CODE HERE
-	return 0;
-};
+void mypthread_exit(void *returnValue)
+{
+        pthread_t threadID      = currentThread->threadID; // Gets the threadID of the currently running thread.
+        returnValues[threadID]  = returnValue;             // Saves the return value to an array.
+        
+        currentThread->state    = finished;                // Sets the state of the tcb to finished.
+        
+        // Gets the attention of the scheduler to cleanup the thread.
+        int ret = swapcontext(currentThread->threadContext, schedulerContext);
+        if (ret != 0) {
+                perror("swapcontext : Failed to swap the current context with the scheduler context ");
+                exit(EXIT_FAILURE);
+        }
+}
 
-/* terminate a thread */
-void mypthread_exit(void *value_ptr) {
-	// Deallocated any dynamic memory created when starting this thread
+int mypthread_join(mypthread_t waiting, void **value)
+{
+        currentThread->waitingID = waiting;             // Set the waitingID to the thread being waited on.
+        currentThread->state     = blocked;             // Set the state of the current thread to blocked.
+        
+        int ret = swapcontext(currentThread->threadContext, schedulerContext);
+        if (ret != 0) {
+                perror("swapcontext : Failed to swap the current context with the scheduler context ");
+                exit(EXIT_FAILURE);
+        }
+        
+        *value = returnValues[waiting];                 // The return value of waitingID should be inside 
+                                                        // the returnValues array.
+        
+        return SUCCESS;
+        
+}
 
-	struct threadControlBlock* current_thread_copy = current_running_thread;
-	current_thread_copy->state = finished;
-
-	// TELL scheduiler to yield
-	
-	if(value_ptr != NULL){
-		values_returned[current_thread_copy->threadID] = value_ptr;
-	}
-
-
-	// SCHEDULER SHOULD THEN FREE THIS
-
-	// YOUR CODE HERE
-};
-
-
-/* Wait for thread termination */
-int mypthread_join(mypthread_t thread, void **value_ptr) {
-
-	// wait for a specific thread to terminate
-	// de-allocate any dynamic memory created by the joining thread
-
-	// struct threadControlBlock* block = active
-
-	// YOUR CODE HERE
-	return 0;
-};
-
-/* initialize the mutex lock 
-	return:
-		 0 - Success
-		-1 - Failure
-*/
 int mypthread_mutex_init(mypthread_mutex_t *mutex,
                           const pthread_mutexattr_t *mutexattr) {
 	//initialize data structures for this mutex
 	/*
 		Mutex not successfully Initialized
 	*/
-	if(mutex == NULL)
-	{
-		return -1;
-	}
-	mutex = malloc(sizeof(mypthread_mutex_t));
+	
 	mutex->lock = 0;
 	mutex->flag = 0;
-	mutex->thread_queue = malloc(sizeof(mypthread_queue));
-	mutex->thread_queue->next = NULL;
+	mutex->thread_queue = NULL;
 	mutex->owner_id = 0;
-	// YOUR CODE HERE
 	return 0;
 };
 
@@ -328,7 +458,7 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex) {
         // if the mutex is acquired successfully, enter the critical section
         // if acquiring mutex fails, push current thread into block list and //
         // context switch to the scheduler thread
-		
+		ignoreTimer = true;
 
 		if(mutex == NULL){
 			printf("Mutex has not been initialized\n");
@@ -336,17 +466,24 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex) {
 			return -1;
 		}
 
+                if(mutex->lock == 0){
+                        mutex->lock = 1;
+                }else{
+                        currentThread->state = blocked;								// MIGHT CHANGE LATER
+                        mypthread_enqueue_front(&(mutex->thread_queue), currentThread);
+                        ignoreTimer = false;
+			mypthread_yield();
+                }
 		
-		if(__sync_lock_test_and_set(&mutex->lock, 1) == 1){
-			/*
-				Add the thread that is want the mutex into the mutex queue and then yield it.
-			*/	
-			current_running_thread->state = blocked;								// MIGHT CHANGE LATER
-			mypthread_queue_enqueue(&mutex->thread_queue, current_running_thread);
-			yield();
-			// current_thread_block->threadID = 
+		// if(__sync_lock_test_and_set(&mutex->lock, 1) == 0){
+		// 	/*
+		// 		Add the thread that is want the mutex into the mutex queue and then yield it.
+		// 	*/	
+			
+                        
 		
-		}
+		// }
+                ignoreTimer = false;
         // YOUR CODE HERE
         return 0;
 };
@@ -357,30 +494,61 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex) {
 	// Put threads in block list to run queue
 	// so that they could compete for mutex later.
 
-		if(mutex == NULL){
-			printf("Mutex has not been initialized\n");
-			return -1;
-		}
+		ignoreTimer = true;
 
-		if(__sync_lock_test_and_set(&mutex->lock, 0) == 0){
-			
-			/*
-				Need global queue of running queue;
-			*/
-			mypthread_queue* cursor = mypthread_queue_dequeue(mutex->thread_queue); // Current block queue
-			while(cursor != NULL){
+                if(mutex->lock == 1){
+                        mutex->lock = 0;
+                        struct threadControlBlock* cursor = NULL;
+                        mypthread_dequeue(&(mutex->thread_queue), &cursor);
+                        
+			while(mutex->thread_queue != NULL){
 				// add queue item to running queues; 
 
-				cursor->context->state = running;
-				cursor = mypthread_queue_dequeue(mutex->thread_queue);
+				cursor->state = running;
+				
+                                mypthread_dequeue(&(mutex->thread_queue), &cursor);
+                                mypthread_enqueue(&readyQueue, cursor);
 			}
+                }
+
+		// if(__sync_lock_test_and_set(&mutex->lock, 0) == 0){
 			
-		}
+		// 	/*
+		// 		Need global queue of running queue;
+		// 	*/
+			
+			
+		// }
 
 	// YOUR CODE HERE
 	return 0;
 };
 
+void queue_cleanup(struct mypthread_queue* front)
+{
+	if(front == NULL)
+	{
+		return;
+	}
+
+	struct mypthread_queue* cursor = front;
+	
+	struct mypthread_queue* temp = NULL;
+	
+	while(cursor != NULL)
+	{
+	
+		temp = cursor;
+	
+		cursor = cursor->next;
+	
+		free(temp->tcb);
+	
+		free(temp);
+	}
+	
+	return;
+}
 
 /* destroy the mutex */
 int mypthread_mutex_destroy(mypthread_mutex_t *mutex) {
@@ -392,52 +560,3 @@ int mypthread_mutex_destroy(mypthread_mutex_t *mutex) {
 
 	return 0;
 };
-
-/* scheduler */
-static void schedule() {
-	// Every time when timer interrup happens, your thread library
-	// should be contexted switched from thread context to this
-	// schedule function
-
-	// Invoke different actual scheduling algorithms
-	// according to policy (STCF or MLFQ)
-
-	// if (sched == STCF)
-	//		sched_stcf();
-	// else if (sched == MLFQ)
-	// 		sched_mlfq();
-
-	// YOUR CODE HERE
-
-// schedule policy
-#ifndef MLFQ
-	// Choose STCF
-#else
-	// Choose MLFQ
-#endif
-
-}
-
-/* Preemptive SJF (STCF) scheduling algorithm */
-static void sched_stcf() {
-
-	mypthread_queue* ready_queue;
-	mypthread_queue* priority_queue;
-	
-	// Your own implementation of STCF
-	// (feel free to modify arguments and return types)
-
-	// YOUR CODE HERE
-}
-
-/* Preemptive MLFQ scheduling algorithm */
-static void sched_mlfq() {
-	// Your own implementation of MLFQ
-	// (feel free to modify arguments and return types)
-
-	// YOUR CODE HERE
-}
-
-// Feel free to add any other functions you need
-
-// YOUR CODE HERE
