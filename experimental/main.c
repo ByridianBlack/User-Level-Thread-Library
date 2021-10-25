@@ -22,14 +22,11 @@ int main(int argc, char** argv) {
         
         unsigned threadID = 0;
         
-        for(int i = 0; i < 100; i++){
-                int ret = mypthread_create(&threadID, NULL, test, NULL);
+        int ret = mypthread_create(&threadID, NULL, test, NULL);
+        if (ret != 0) {
+                 fprintf(stderr, "mypthread_create : unable to create thread ");
+                 exit(EXIT_FAILURE);
         }
-
-        // if (ret != 0) {
-        //         fprintf(stderr, "mypthread_create : unable to create thread ");
-        //         exit(EXIT_FAILURE);
-        // }
         
         printf("x: %d\n", x);
         

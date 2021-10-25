@@ -7,20 +7,24 @@
 #include "mypthread.h"
 
 #define STACK_SIZE 1048576
+#define TIME_INTERVAL 20
 #define SUCCESS 0
 #define FAILURE 1
 
 mypthread_t threadCounter                = 0;     // Assigns thread IDs
-ucontext_t  schedulerContext             = {0};   // Zeroes out the schedulerContext struct
+ucontext_t*  schedulerContext            = NULL;  // Zeroes out the schedulerContext struct
 struct threadControlBlock *currentThread = NULL;  // No thread is initially running.
 struct mypthread_queue *readyQueue       = NULL;  // Initially, there is nothing in the queue.
 void *returnValues[1000]                 = {0};   // Zeroes out the array storing the return values of threads
 
 bool schedulerInitialized = false;
+bool ignoreTimer          = false;
 
 int mypthread_enqueue(struct mypthread_queue **front,
                       struct threadControlBlock* pthread_item)
 {
+        ignoreTimer = true;
+        
         // Case where there are no items in the queue.
         if (*front == NULL) {
                 
@@ -71,12 +75,16 @@ int mypthread_enqueue(struct mypthread_queue **front,
         
         prev->next = temp;
         
+        ignoreTimer = false;
+        
         return EXIT_SUCCESS;
 }
 
 int mypthread_enqueue_front(struct mypthread_queue **front,
                             struct threadControlBlock *pthread_item)
 {
+        ignoreTimer = true;
+        
         struct mypthread_queue *entry = malloc(sizeof(struct mypthread_queue));
         if (entry == NULL) {
                 perror("malloc : unable to allocate space for the queue node ");
@@ -88,12 +96,16 @@ int mypthread_enqueue_front(struct mypthread_queue **front,
         
         (*front) = entry;
         
+        ignoreTimer = false;
+        
         return SUCCESS;
         
 }
 int mypthread_dequeue(struct mypthread_queue** front,
                       struct threadControlBlock** pthread_item)
 {
+        ignoreTimer = true;
+        
         if (front == NULL) {
                 return FAILURE;
         }
@@ -103,14 +115,39 @@ int mypthread_dequeue(struct mypthread_queue** front,
         
         *pthread_item = temp->tcb;
         *front = (*front)->next;
-        // free(temp);
+        free(temp);
+        
+        ignoreTimer = false;
         
         return SUCCESS;
         
 }
 
+void start_timer()
+{
+        struct itimerval timer;
+        
+        // Set the period between now and the first timer interrupt
+        timer.it_value.tv_sec   = 0;                            // Timer does not last for over a second
+        timer.it_value.tv_usec  = TIME_INTERVAL * 1000;         // Convert milliseconds to microseconds
+        
+        // Set the period between each timer interrupt
+        timer.it_interval.tv_sec = 0;
+        timer.it_interval.tv_usec = TIME_INTERVAL * 1000;
+        
+        int ret = setitimer(ITIMER_REAL, &timer, NULL);
+        if (ret != 0) {
+                perror("setitimer : unable to set the timer ");
+                exit(EXIT_FAILURE);
+        }
+}
+
 static void scheduler()
 {       
+        ignoreTimer = true;
+        
+        start_timer();
+        
         enum status currentState = currentThread->state;
         int ret;
         
@@ -143,6 +180,7 @@ static void scheduler()
         
         currentThread->state = running;                 // Set the state of the current thread to running.
         
+        ignoreTimer = false;
         
         ret = setcontext(currentThread->threadContext); // Get out of the scheduler.
         if (ret != 0) {
@@ -150,14 +188,15 @@ static void scheduler()
                 exit(EXIT_FAILURE);
         }
         
-        return;
 }
 
 void SIGALRM_handler(int signum)
 {
         
+        if (ignoreTimer == true) return;
+        
         // Save the current (running) context and switch to the scheduler.
-        int ret = swapcontext(currentThread->threadContext, &schedulerContext);
+        int ret = swapcontext(currentThread->threadContext, schedulerContext);
         if (ret != 0) {
                 perror("swapcontext : Failed to swap the current context with the scheduler context ");
                 exit(EXIT_FAILURE);
@@ -179,7 +218,15 @@ static void thread_wrapper(void* (*function) (void *), void *args)
 
 static int initialize_scheduler_context()
 {
-        getcontext(&schedulerContext);
+        ignoreTimer = true;
+        
+        schedulerContext = malloc(sizeof(struct ucontext_t));
+        if (schedulerContext == NULL) {
+                perror("Malloc : Unable to allocate space for scheduler context ");
+                exit(EXIT_FAILURE);
+        }
+        
+        getcontext(schedulerContext);
         
         void *stack = malloc(STACK_SIZE);
         if (stack == NULL) {
@@ -187,18 +234,22 @@ static int initialize_scheduler_context()
                 exit(EXIT_FAILURE);
         }
         
-        schedulerContext.uc_link            = 0;          // Set successor context to null
-        schedulerContext.uc_stack.ss_sp     = stack;      // Set the starting address of the stack
-        schedulerContext.uc_stack.ss_size   = STACK_SIZE; // Set the size of the stack
-        schedulerContext.uc_stack.ss_flags  = 0;          // Might be necessary
+        schedulerContext->uc_link            = 0;          // Set successor context to null
+        schedulerContext->uc_stack.ss_sp     = stack;      // Set the starting address of the stack
+        schedulerContext->uc_stack.ss_size   = STACK_SIZE; // Set the size of the stack
+        schedulerContext->uc_stack.ss_flags  = 0;          // Might be necessary
         
-        makecontext(&schedulerContext, (void *) &scheduler, 0);
+        makecontext(schedulerContext, (void *) &scheduler, 0);
+        
+        ignoreTimer = false;
         
         return SUCCESS;
 }
 
 static int initialize_signal_handler()
 {
+        ignoreTimer = true;
+        
         struct sigaction act = {0};               // Zeroes out a sigaction struct
         act.sa_handler = &SIGALRM_handler;        // SIGALRM_handler is the signal handler function
         
@@ -209,11 +260,15 @@ static int initialize_signal_handler()
                 exit(EXIT_FAILURE);
         }
         
+        ignoreTimer = false;
+        
         return SUCCESS;
 }
 
 static int initialize_main_tcb(struct threadControlBlock **mainTCB)
 {
+        ignoreTimer = true;
+        
         *mainTCB = malloc(sizeof(struct threadControlBlock));
         if (*mainTCB == NULL) {
                 perror("malloc : Could not allocate tcb for the main thread ");
@@ -233,11 +288,15 @@ static int initialize_main_tcb(struct threadControlBlock **mainTCB)
         }
         
         (*mainTCB)->threadContext   = mainContext;
+        
+        ignoreTimer = false;
         return SUCCESS;
 }
 
 static int create_new_thread(struct threadControlBlock **tcb, void* (*function) (void*), void *args) 
 {
+        ignoreTimer = true;
+        
         /* Create the newTCB (thread) */
         *tcb = malloc(sizeof(struct threadControlBlock));
         if ((*tcb) == NULL) {
@@ -272,7 +331,7 @@ static int create_new_thread(struct threadControlBlock **tcb, void* (*function) 
         
         getcontext(threadWrapperContext);
         
-        threadWrapperContext->uc_link           = &schedulerContext;    // Set the successor context to the scheduler context
+        threadWrapperContext->uc_link           = schedulerContext;     // Set the successor context to the scheduler context
         threadWrapperContext->uc_stack.ss_sp    = threadWrapperStack;   // Set the starting address of the stack.
         threadWrapperContext->uc_stack.ss_size  = STACK_SIZE;           // Set the size of the stack.
         threadWrapperContext->uc_stack.ss_flags = 0;                    // Might be necessary.
@@ -280,12 +339,14 @@ static int create_new_thread(struct threadControlBlock **tcb, void* (*function) 
         makecontext(threadWrapperContext, (void *) thread_wrapper, 2, function, args);
         (*tcb)->threadContext = threadWrapperContext;
         
+        ignoreTimer = false;
         return SUCCESS;
 }
 
 int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
                      void* (*function) (void*), void *args)
-{       
+{
+        
         if (schedulerInitialized == false) {
                 initialize_scheduler_context();
                 initialize_signal_handler();
@@ -315,7 +376,7 @@ int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
                 exit(EXIT_FAILURE);
         }
         
-        ret = swapcontext(currentThread->threadContext, &schedulerContext);
+        ret = swapcontext(currentThread->threadContext, schedulerContext);
         if (ret != 0) {
                 perror("swapcontext : Failed to swap the current context with the scheduler context ");
                 exit(EXIT_FAILURE);

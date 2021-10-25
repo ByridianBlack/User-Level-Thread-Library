@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <sys/time.h>
 #include <ucontext.h>
 
 // Used as a semantic type for thread IDs.
