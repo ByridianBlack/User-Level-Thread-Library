@@ -21,6 +21,10 @@ void *returnValues[1000]                 = {0};   // Zeroes out the array storin
 bool schedulerInitialized = false;
 bool ignoreTimer          = false;
 
+
+void getID(){
+        printf("CurrentThreadID:%d\n", currentThread->threadID);
+}
 int mypthread_enqueue(struct mypthread_queue **front,
                       struct threadControlBlock* pthread_item)
 {
@@ -419,16 +423,11 @@ int mypthread_mutex_init(mypthread_mutex_t *mutex,
 	/*
 		Mutex not successfully Initialized
 	*/
-	if(mutex == NULL)
-	{
-		return -1;
-	}
-	mutex = malloc(sizeof(mypthread_mutex_t));
+	
 	mutex->lock = 0;
 	mutex->flag = 0;
 	mutex->thread_queue = NULL;
 	mutex->owner_id = 0;
-	// YOUR CODE HERE
 	return 0;
 };
 
@@ -447,7 +446,7 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex) {
 		}
 
 		
-		if(__sync_lock_test_and_set(&mutex->lock, 1) == 1){
+		if(__sync_lock_test_and_set(&mutex->lock, 1) == 0){
 			/*
 				Add the thread that is want the mutex into the mutex queue and then yield it.
 			*/	

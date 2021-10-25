@@ -24,6 +24,7 @@
 #include <sys/time.h>
 #include <ucontext.h>
 
+void getID();
 // Used as a semantic type for thread IDs.
 typedef unsigned int mypthread_t;
 
