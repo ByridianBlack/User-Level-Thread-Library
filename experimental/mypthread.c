@@ -159,7 +159,7 @@ static void scheduler()
         
         assert(currentState != ready);
         
-        if (currentState == running) {
+        if (currentState == running || currentState == blocked) {
                 currentThread->state         = ready;   // currentThread goes from running to ready.
                 currentThread->quantumCount += 1;       // currentThread finished running so quantum is incremented.
                 
@@ -175,7 +175,7 @@ static void scheduler()
                 //free(currentThread->threadContext->uc_stack.ss_sp);    // free the stack of the finished thread.
                 //free(currentThread->threadContext);                    // free the context of the finished thread.
                 //free(currentThread);                                   // free the tcb of the finished thread.
-        }
+        } 
         
         // The following always occurs (even is state of current thread is blocked/finished)
         ret = mypthread_dequeue(&readyQueue, &currentThread);
