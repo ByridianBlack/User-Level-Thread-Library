@@ -283,6 +283,7 @@ static int initialize_main_tcb(struct threadControlBlock **mainTCB)
         (*mainTCB)->threadID        = threadCounter;            // Main thread should have a threadID 0
         (*mainTCB)->state           = running;                  // Main thread is currently running thread
         (*mainTCB)->quantumCount    = 0;                        // QuantumCount initially zero
+        (*mainTCB)->waitingID       = 0;                        // Thread not waiting on any thread
         
         threadCounter++;
         
@@ -312,6 +313,7 @@ static int create_new_thread(struct threadControlBlock **tcb, void* (*function) 
         (*tcb)->threadID      = threadCounter;
         (*tcb)->state         = ready;
         (*tcb)->quantumCount  = 0;
+        (*tcb)->waitingID     = 0;
         
         threadCounter++;
         
@@ -415,6 +417,24 @@ void mypthread_exit(void *returnValue)
                 perror("swapcontext : Failed to swap the current context with the scheduler context ");
                 exit(EXIT_FAILURE);
         }
+}
+
+int mypthread_join(mypthread_t waiting, void **value)
+{
+        currentThread->waitingID = waiting;             // Set the waitingID to the thread being waited on.
+        currentThread->state     = blocked;             // Set the state of the current thread to blocked.
+        
+        int ret = swapcontext(currentThread->threadContext, schedulerContext);
+        if (ret != 0) {
+                perror("swapcontext : Failed to swap the current context with the scheduler context ");
+                exit(EXIT_FAILURE);
+        }
+        
+        *value = returnValues[waiting];                 // The return value of waitingID should be inside 
+                                                        // the returnValues array.
+        
+        return SUCCESS;
+        
 }
 
 int mypthread_mutex_init(mypthread_mutex_t *mutex,

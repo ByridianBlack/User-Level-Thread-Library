@@ -9,41 +9,25 @@
 #include <stdlib.h>
 #include "mypthread.h"
 
-mypthread_mutex_t locker;
-int counter = 0;
-
 void *test(void *other) {
         int x = 10;
         int y = x * 2;
-        // printf("first:%d\n", locker.lock);
-        mypthread_mutex_lock(&locker);
-        counter++;
-        // printf("%d\n", locker.lock);
-        getID();
-        mypthread_mutex_unlock(&locker);
-        // printf("y: %d\n", y);
-
+        printf("y: %d\n", y);
         return NULL;
 }
 
 int main(int argc, char** argv) {
-        
-        int x = 25;
-        
-        unsigned threadID = 0;
-        
-        mypthread_mutex_init(&locker, NULL);
-        // printf("%d\n", locker.lock);
-       
-        // int ret =  __sync_lock_test_and_set(&(locker.lock), 1);
-        // printf("%d\n", locker.lock);
-        // printf("return: %d\n", ret);
-        for(int i = 0; i < 1000; i++){
-            
-            int ret = mypthread_create(&threadID, NULL, test, NULL);
 
+        int x = 25;
+
+        unsigned threadID = 0;
+
+        int ret = mypthread_create(&threadID, NULL, test, NULL);
+        if (ret != 0) {
+                 fprintf(stderr, "mypthread_create : unable to create thread ");
+                 exit(EXIT_FAILURE);
         }
-        
-        printf("x: %d\n", counter);
-        
+
+        printf("x: %d\n", x);
+
 }

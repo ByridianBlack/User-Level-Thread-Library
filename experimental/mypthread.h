@@ -35,6 +35,7 @@ struct threadControlBlock {
 	ucontext_t* threadContext;      // pointer to thread context
         
         mypthread_t threadID;           // thread id
+        mypthread_t waitingID;          // waiting for this thread
         enum status state;              // thread status
         int quantumCount;               // number of elapsed quanta
 };
