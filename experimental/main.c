@@ -33,11 +33,7 @@ int main(int argc, char** argv) {
         unsigned threadID = 0;
         
         mypthread_mutex_init(&locker, NULL);
-        // printf("%d\n", locker.lock);
-       
-        // int ret =  __sync_lock_test_and_set(&(locker.lock), 1);
-        // printf("%d\n", locker.lock);
-        // printf("return: %d\n", ret);
+        
         for(int i = 0; i < 1000; i++){
             
             int ret = mypthread_create(&threadID, NULL, test, NULL);

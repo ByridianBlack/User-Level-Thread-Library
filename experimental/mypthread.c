@@ -111,7 +111,8 @@ int mypthread_dequeue(struct mypthread_queue** front,
 {
         ignoreTimer = true;
         
-        if (front == NULL) {
+        if (*front == NULL) {
+                exit(0);
                 return FAILURE;
         }
         
@@ -120,7 +121,7 @@ int mypthread_dequeue(struct mypthread_queue** front,
         
         *pthread_item = temp->tcb;
         *front = (*front)->next;
-        free(temp);
+        // free(temp);
         
         ignoreTimer = false;
         
@@ -437,7 +438,7 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex) {
         // if the mutex is acquired successfully, enter the critical section
         // if acquiring mutex fails, push current thread into block list and //
         // context switch to the scheduler thread
-		
+		ignoreTimer = true;
 
 		if(mutex == NULL){
 			printf("Mutex has not been initialized\n");
@@ -445,17 +446,24 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex) {
 			return -1;
 		}
 
-		
-		if(__sync_lock_test_and_set(&mutex->lock, 1) == 0){
-			/*
-				Add the thread that is want the mutex into the mutex queue and then yield it.
-			*/	
-			currentThread->state = blocked;								// MIGHT CHANGE LATER
+                if(mutex->lock == 0){
+                        mutex->lock = 1;
+                }else{
+                        currentThread->state = blocked;								// MIGHT CHANGE LATER
                         mypthread_enqueue_front(&(mutex->thread_queue), currentThread);
+                        ignoreTimer = false;
 			mypthread_yield();
+                }
+		
+		// if(__sync_lock_test_and_set(&mutex->lock, 1) == 0){
+		// 	/*
+		// 		Add the thread that is want the mutex into the mutex queue and then yield it.
+		// 	*/	
+			
                         
 		
-		}
+		// }
+                ignoreTimer = false;
         // YOUR CODE HERE
         return 0;
 };
@@ -466,17 +474,11 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex) {
 	// Put threads in block list to run queue
 	// so that they could compete for mutex later.
 
-		if(mutex == NULL){
-			printf("Mutex has not been initialized\n");
-			return -1;
-		}
+		ignoreTimer = true;
 
-		if(__sync_lock_test_and_set(&mutex->lock, 0) == 0){
-			
-			/*
-				Need global queue of running queue;
-			*/
-			struct threadControlBlock* cursor = NULL;
+                if(mutex->lock = 1){
+                        mutex->lock = 0;
+                        struct threadControlBlock* cursor = NULL;
                         mypthread_dequeue(&(mutex->thread_queue), &cursor);
                         
 			while(mutex->thread_queue != NULL){
@@ -487,8 +489,16 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex) {
                                 mypthread_dequeue(&(mutex->thread_queue), &cursor);
                                 mypthread_enqueue(&readyQueue, cursor);
 			}
+                }
+
+		// if(__sync_lock_test_and_set(&mutex->lock, 0) == 0){
 			
-		}
+		// 	/*
+		// 		Need global queue of running queue;
+		// 	*/
+			
+			
+		// }
 
 	// YOUR CODE HERE
 	return 0;
