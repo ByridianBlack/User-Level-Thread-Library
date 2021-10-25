@@ -13,7 +13,8 @@ void *test(void *other) {
         int x = 10;
         int y = x * 2;
         printf("y: %d\n", y);
-        return NULL;
+        
+        mypthread_exit(NULL);
 }
 
 int main(int argc, char** argv) {

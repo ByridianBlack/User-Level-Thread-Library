@@ -14,7 +14,8 @@
 mypthread_t threadCounter                = 0;     // Assigns thread IDs
 ucontext_t*  schedulerContext            = NULL;  // Zeroes out the schedulerContext struct
 struct threadControlBlock *currentThread = NULL;  // No thread is initially running.
-struct mypthread_queue *readyQueue       = NULL;  // Initially, there is nothing in the queue.
+struct mypthread_queue *readyQueue       = NULL;  // Queue to store the ready threads.
+struct mypthread_queue *blockedQueue     = NULL;  // Queue to store the blocked threads 
 void *returnValues[1000]                 = {0};   // Zeroes out the array storing the return values of threads
 
 bool schedulerInitialized = false;
@@ -146,7 +147,7 @@ static void scheduler()
 {       
         ignoreTimer = true;
         
-        start_timer();
+        //start_timer();
         
         enum status currentState = currentThread->state;
         int ret;
@@ -388,7 +389,28 @@ int mypthread_create(mypthread_t *thread, pthread_attr_t *attr,
 
 int mypthread_yield()
 {
+        int ret = swapcontext(currentThread->threadContext, schedulerContext);
+        if (ret != 0) {
+                perror("swapcontext : Failed to swap the current context with the scheduler context ");
+                exit(EXIT_FAILURE);
+        }
+        
         return SUCCESS;
+}
+
+void mypthread_exit(void *returnValue)
+{
+        pthread_t threadID      = currentThread->threadID; // Gets the threadID of the currently running thread.
+        returnValues[threadID]  = returnValue;             // Saves the return value to an array.
+        
+        currentThread->state    = finished;                // Sets the state of the tcb to finished.
+        
+        // Gets the attention of the scheduler to cleanup the thread.
+        int ret = swapcontext(currentThread->threadContext, schedulerContext);
+        if (ret != 0) {
+                perror("swapcontext : Failed to swap the current context with the scheduler context ");
+                exit(EXIT_FAILURE);
+        }
 }
 
 int mypthread_mutex_init(mypthread_mutex_t *mutex,
